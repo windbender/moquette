@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,30 +18,31 @@ package io.moquette.server.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Reader;
 import java.text.ParseException;
 import java.util.Properties;
 
 /**
- * Configuration that loads file from the classpath
- *
- * @author andrea
+ * Configuration that loads config stream from a {@link IResourceLoader} instance.
  */
-public class ClasspathConfig extends IConfig {
+public class ResourceLoaderConfig extends IConfig {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ClasspathConfig.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ResourceLoaderConfig.class);
 
     private final Properties m_properties;
+    private final IResourceLoader resourceLoader;
 
-    public ClasspathConfig() {
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        InputStream is = classLoader.getResourceAsStream("config/moquette.conf");
-        if (is == null) {
-            throw new RuntimeException("Can't locate the resource \"config/moquette.conf\"");
+    public ResourceLoaderConfig(IResourceLoader resourceLoader) {
+        this(resourceLoader, null);
+    }
+
+    public ResourceLoaderConfig(IResourceLoader resourceLoader, String configName) {
+        this.resourceLoader = resourceLoader;
+        Reader configReader = configName != null ? resourceLoader.loadResource(configName) : resourceLoader.loadDefaultResource();
+        if (configReader == null) {
+            throw new IllegalArgumentException(
+              "Can't locate " + resourceLoader.getName() + " \"" + configName + "\"");
         }
-        Reader configReader = new InputStreamReader(is);
         ConfigurationParser confParser = new ConfigurationParser();
         m_properties = confParser.getProperties();
         assignDefaults();
@@ -66,4 +67,10 @@ public class ClasspathConfig extends IConfig {
     public String getProperty(String name, String defaultValue) {
         return m_properties.getProperty(name, defaultValue);
     }
+
+    @Override
+    public IResourceLoader getResourceLoader() {
+        return resourceLoader;
+    }
+
 }

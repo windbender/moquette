@@ -6,7 +6,7 @@
         <relativePath>../</relativePath>
         <artifactId>moquette-parent</artifactId>
         <groupId>io.moquette</groupId>
-        <version>0.9-SNAPSHOT</version>
+        <version>0.10-SNAPSHOT</version>
     </parent>
 
     <artifactId>moquette-netty-parser</artifactId>
@@ -45,8 +45,15 @@
         
         <dependency>
             <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.6.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
             <version>1.6.4</version>
+            <scope>test</scope>
         </dependency>
         
         <dependency>
@@ -64,6 +71,33 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.hdrhistogram</groupId>
+            <artifactId>HdrHistogram</artifactId>
+            <version>2.1.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>1.1.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.eclipse.jetty.toolchain</groupId>
+            <artifactId>jetty-perf-helper</artifactId>
+            <version>1.0.5</version>
+            <scope>test</scope>
+        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.eclipse.paho</groupId>-->
+            <!--<artifactId>org.eclipse.paho.client.mqttv3</artifactId>-->
+            <!--<version>1.0.2</version>-->
+            <!--<scope>test</scope>-->
+        <!--</dependency>-->
+
     </dependencies>
     
     <build>
@@ -79,6 +113,28 @@
                 </configuration>
             </plugin>
 
+	    <!-- Includes to generate OSGi headers -->
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>  
+                        <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+                    </archive> 
+                </configuration>
+            </plugin>  
+            <plugin>   
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>bundle-manifest</id>
+                        <phase>process-classes</phase>
+                        <goals>    
+                            <goal>manifest</goal>
+                        </goals>   
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
     

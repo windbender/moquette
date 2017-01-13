@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -47,28 +47,22 @@ public class ConfigurationClassLoaderTest implements IAuthenticator, IAuthorizat
     @After
     public void tearDown() throws Exception {
         m_server.stopServer();
-        File dbFile = new File(m_config.getProperty(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME));
-        if (dbFile.exists()) {
-            dbFile.delete();
-        }
     }
     
     @Test
     public void loadAuthenticator() throws Exception {
         Properties props = new Properties(IntegrationUtils.prepareTestProperties());
-        props.setProperty(BrokerConstants.AUTHENTICATOR_CLASS_NAME, "io.moquette.server.ConfigurationClassLoaderTest");
+        props.setProperty(BrokerConstants.AUTHENTICATOR_CLASS_NAME, getClass().getName());
         startServer(props);
         assertTrue(true);
-        m_server.stopServer();
     }
     
     @Test
     public void loadAuthorizator() throws Exception {
         Properties props = new Properties(IntegrationUtils.prepareTestProperties());
-        props.setProperty(BrokerConstants.AUTHORIZATOR_CLASS_NAME, "io.moquette.server.ConfigurationClassLoaderTest");
+        props.setProperty(BrokerConstants.AUTHORIZATOR_CLASS_NAME, getClass().getName());
         startServer(props);
         assertTrue(true);
-        m_server.stopServer();
     }
 
     @Override

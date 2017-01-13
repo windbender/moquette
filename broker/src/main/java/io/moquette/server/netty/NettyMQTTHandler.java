@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
+import java.io.IOException;
 
 /**
  *
@@ -94,14 +95,7 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         String clientID = NettyUtils.clientID(ctx.channel());
         if (clientID != null && !clientID.isEmpty()) {
-            //if the channel was of a correctly connected client, inform messaging
-            //else it was of a not completed CONNECT message or sessionStolen
-            boolean stolen = false;
-            Boolean stolenAttr = NettyUtils.sessionStolen(ctx.channel());
-            if (stolenAttr != null && stolenAttr == Boolean.TRUE) {
-                stolen = true;
-            }
-            m_processor.processConnectionLost(clientID, stolen, ctx.channel());
+            m_processor.processConnectionLost(clientID, ctx.channel());
         }
         ctx.close();
     }
@@ -111,6 +105,8 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
         if (cause instanceof CorruptedFrameException) {
             //something goes bad with decoding
             LOG.warn("Error decoding a packet, probably a bad formatted packet, message: " + cause.getMessage());
+        } else if (cause instanceof IOException && "Connection reset by peer".equals(cause.getMessage())) {
+            LOG.warn("Network connection closed abruptly");
         } else {
             LOG.error("Ugly error on networking", cause);
         }
@@ -125,14 +121,4 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
         ctx.fireChannelWritabilityChanged();
     }
 
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
-        if (evt instanceof ProtocolProcessor.ForceDisconnectEvent) {
-            ProtocolProcessor.ForceDisconnectEvent disconnectEvent = (ProtocolProcessor.ForceDisconnectEvent) evt;
-            m_processor.forceCloseConnection(ctx.channel(), disconnectEvent.newChannel, disconnectEvent.msg);
-        } else if (evt instanceof ProtocolProcessor.CompleteConnect) {
-            ProtocolProcessor.CompleteConnect completeConnectEvent = (ProtocolProcessor.CompleteConnect) evt;
-            m_processor.completeConnect(ctx.channel(), completeConnectEvent.msg);
-        }
-    }
 }

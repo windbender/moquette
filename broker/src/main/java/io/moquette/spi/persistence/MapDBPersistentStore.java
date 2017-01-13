@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -69,6 +69,7 @@ public class MapDBPersistentStore {
 
     /**
      * Factory method to create message store backed by MapDB
+     * @return the message store instance.
      * */
     public IMessagesStore messagesStore() {
         return m_messageStore;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -37,7 +37,6 @@ public interface IMessagesStore {
         //Optional attribute, available only fo QoS 1 and 2
         private Integer m_msgID;
         private MessageGUID m_guid;
-        private AtomicInteger referenceCounter = new AtomicInteger(0);
 
         public StoredMessage(byte[] message, AbstractMessage.QOSType qos, String topic) {
             m_qos = qos;
@@ -93,18 +92,6 @@ public interface IMessagesStore {
             return m_retained;
         }
 
-        public void incReferenceCounter() {
-            this.referenceCounter.incrementAndGet();
-        }
-
-        public void decReferenceCounter() {
-            this.referenceCounter.decrementAndGet();
-        }
-
-        public int getReferenceCounter() {
-            return this.referenceCounter.get();
-        }
-
         @Override
         public String toString() {
             return "PublishEvent{" +
@@ -125,34 +112,28 @@ public interface IMessagesStore {
     /**
      * Persist the message. 
      * If the message is empty then the topic is cleaned, else it's stored.
+     * @param topic for the retained.
+     * @param guid of the message to mark as retained.
      */
     void storeRetained(String topic, MessageGUID guid);
 
     /**
      * Return a list of retained messages that satisfy the condition.
+     * @param condition the condition to match during the search.
+     * @return the collection of matching messages.
      */
     Collection<StoredMessage> searchMatching(IMatchingCondition condition);
 
     /**
      * Persist the message.
+     * @param storedMessage the message to store for future usage.
      * @return the unique id in the storage (guid).
      * */
-    MessageGUID storePublishForFuture(StoredMessage evt);
+    MessageGUID storePublishForFuture(StoredMessage storedMessage);
 
-    /**
-     * Return the list of persisted publishes for the given clientID.
-     * For QoS1 and QoS2 with clean session flag, this method return the list of 
-     * missed publish events while the client was disconnected.
-     */
-    List<StoredMessage> listMessagesInSession(Collection<MessageGUID> guids);
-    
     void dropMessagesInSession(String clientID);
 
     StoredMessage getMessageByGuid(MessageGUID guid);
 
     void cleanRetained(String topic);
-
-    void incUsageCounter(MessageGUID guid);
-
-    void decUsageCounter(MessageGUID guid);
 }

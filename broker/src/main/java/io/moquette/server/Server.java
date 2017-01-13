@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -27,10 +27,8 @@ import io.moquette.interception.HazelcastInterceptHandler;
 import io.moquette.interception.HazelcastMsg;
 import io.moquette.interception.InterceptHandler;
 import io.moquette.parser.proto.messages.PublishMessage;
-import io.moquette.server.config.MemoryConfig;
+import io.moquette.server.config.*;
 import io.moquette.spi.impl.ProtocolProcessorBootstrapper;
-import io.moquette.server.config.FilesystemConfig;
-import io.moquette.server.config.IConfig;
 import io.moquette.server.netty.NettyAcceptor;
 import io.moquette.spi.impl.ProtocolProcessor;
 import io.moquette.spi.impl.subscriptions.Subscription;
@@ -68,7 +66,7 @@ public class Server {
     public static void main(String[] args) throws IOException {
         final Server server = new Server();
         server.startServer();
-        System.out.println("Server started, version 0.9-SNAPSHOT");
+        System.out.println("Server started, version 0.10-SNAPSHOT");
         //Bind  a shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
@@ -81,18 +79,28 @@ public class Server {
     /**
      * Starts Moquette bringing the configuration from the file 
      * located at m_config/moquette.conf
+     * @throws IOException in case of any IO error.
      */
     public void startServer() throws IOException {
-        final IConfig config = new FilesystemConfig();
+        IResourceLoader filesystemLoader = new FileResourceLoader(defaultConfigFile());
+        final IConfig config = new ResourceLoaderConfig(filesystemLoader);
         startServer(config);
+    }
+
+    private static File defaultConfigFile() {
+        String configPath = System.getProperty("moquette.path", null);
+        return new File(configPath, IConfig.DEFAULT_CONFIG);
     }
 
     /**
      * Starts Moquette bringing the configuration from the given file
+     * @param configFile text file that contains the configuration.
+     * @throws IOException in case of any IO Error.
      */
     public void startServer(File configFile) throws IOException {
         LOG.info("Using m_config file: " + configFile.getAbsolutePath());
-        final IConfig config = new FilesystemConfig(configFile);
+        IResourceLoader filesystemLoader = new FileResourceLoader(configFile);
+        final IConfig config = new ResourceLoaderConfig(filesystemLoader);
         startServer(config);
     }
     
@@ -104,6 +112,9 @@ public class Server {
      *  <li>port</li>
      *  <li>password_file</li>
      * </ul>
+     *
+     * @param configProps the properties map to use as configuration.
+     * @throws IOException in case of any IO Error.
      */
     public void startServer(Properties configProps) throws IOException {
         final IConfig config = new MemoryConfig(configProps);
@@ -112,6 +123,8 @@ public class Server {
 
     /**
      * Starts Moquette bringing the configuration files from the given Config implementation.
+     * @param config the configuration to use to start the broker.
+     * @throws IOException in case of any IO Error.
      */
     public void startServer(IConfig config) throws IOException {
         startServer(config, null);
@@ -120,6 +133,9 @@ public class Server {
     /**
      * Starts Moquette with config provided by an implementation of IConfig class and with the
      * set of InterceptHandler.
+     * @param config the configuration to use to start the broker.
+     * @param handlers the handlers to install in the broker.
+     * @throws IOException in case of any IO Error.
      * */
     public void startServer(IConfig config, List<? extends InterceptHandler> handlers) throws IOException {
         startServer(config, handlers, null, null, null);
@@ -221,6 +237,8 @@ public class Server {
     /**
      * SPI method used by Broker embedded applications to get list of subscribers.
      * Returns null if the broker is not started.
+     *
+     * @return list of subscriptions.
      */
     public List<Subscription> getSubscriptions() {
         if (m_processorBootstrapper == null) {
@@ -231,6 +249,8 @@ public class Server {
 
     /**
      * SPI method used by Broker embedded applications to add intercept handlers.
+     * @param interceptHandler the handler to add.
+     * @return true id operation was successful.
      * */
     public boolean addInterceptHandler(InterceptHandler interceptHandler) {
         if (!m_initialized) {
@@ -241,6 +261,8 @@ public class Server {
 
     /**
      * SPI method used by Broker embedded applications to remove intercept handlers.
+     * @param interceptHandler the handler to remove.
+     * @return true id operation was successful.
      * */
     public boolean removeInterceptHandler(InterceptHandler interceptHandler) {
         if (!m_initialized) {

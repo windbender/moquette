@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,8 +14,6 @@
  * You may elect to redistribute this code under either of these licenses.
  */
 package io.moquette.server.config;
-
-import io.moquette.BrokerConstants;
 
 import java.util.Map;
 import java.util.Properties;
@@ -61,4 +59,10 @@ public class MemoryConfig extends IConfig {
     public String getProperty(String name, String defaultValue) {
         return m_properties.getProperty(name, defaultValue);
     }
+
+    @Override
+    public IResourceLoader getResourceLoader() {
+        return new FileResourceLoader();
+    }
+
 }

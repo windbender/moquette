@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,12 +16,17 @@
 package io.moquette.spi.impl;
 
 import io.moquette.BrokerConstants;
-import io.moquette.server.Server;
-import io.moquette.spi.IMessagesStore;
 import io.moquette.interception.InterceptHandler;
+import io.moquette.server.Server;
 import io.moquette.server.config.IConfig;
+import io.moquette.server.config.IResourceLoader;
+import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.ISessionsStore;
-import io.moquette.spi.impl.security.*;
+import io.moquette.spi.impl.security.ACLFileParser;
+import io.moquette.spi.impl.security.AcceptAllAuthenticator;
+import io.moquette.spi.impl.security.DenyAllAuthorizator;
+import io.moquette.spi.impl.security.PermitAllAuthorizator;
+import io.moquette.spi.impl.security.ResourceAuthenticator;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.SubscriptionsStore;
 import io.moquette.spi.persistence.MapDBPersistentStore;
@@ -30,7 +35,6 @@ import io.moquette.spi.security.IAuthorizator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -70,6 +74,8 @@ public class ProtocolProcessorBootstrapper {
      *                      and fallback on the default one (permit all).
      * @param authorizator an implementation of the authorizator to be used, if null load that specified in config
      *                      and fallback on the default one (permit all).
+     * @param server the serber to init.
+     * @return the processor created for the broker.
      * */
     public ProtocolProcessor init(IConfig props, List<? extends InterceptHandler> embeddedObservers,
                                   IAuthenticator authenticator, IAuthorizator authorizator, Server server) {
@@ -108,12 +114,13 @@ public class ProtocolProcessorBootstrapper {
             LOG.info("Loaded custom authenticator {}", authenticatorClassName);
         }
 
+        IResourceLoader resourceLoader = props.getResourceLoader();
         if (authenticator == null) {
             String passwdPath = props.getProperty(BrokerConstants.PASSWORD_FILE_PROPERTY_NAME, "");
             if (passwdPath.isEmpty()) {
                 authenticator = new AcceptAllAuthenticator();
             } else {
-                authenticator = new FileAuthenticator(configPath, passwdPath);
+                authenticator = new ResourceAuthenticator(resourceLoader, passwdPath);
             }
         }
 
@@ -127,11 +134,10 @@ public class ProtocolProcessorBootstrapper {
             String aclFilePath = props.getProperty(BrokerConstants.ACL_FILE_PROPERTY_NAME, "");
             if (aclFilePath != null && !aclFilePath.isEmpty()) {
                 authorizator = new DenyAllAuthorizator();
-                File aclFile = new File(configPath, aclFilePath);
                 try {
-                    authorizator = ACLFileParser.parse(aclFile);
+                    authorizator = ACLFileParser.parse(resourceLoader.loadResource(aclFilePath));
                 } catch (ParseException pex) {
-                    LOG.error(String.format("Format error in parsing acl file %s", aclFile), pex);
+                    LOG.error(String.format("Format error in parsing acl %s %s", resourceLoader.getName(), aclFilePath), pex);
                 }
                 LOG.info("Using acl file defined at path {}", aclFilePath);
             } else {

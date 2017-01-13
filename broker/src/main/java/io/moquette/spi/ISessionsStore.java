@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,8 +15,8 @@
  */
 package io.moquette.spi;
 
-import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 import io.moquette.spi.IMessagesStore.StoredMessage;
 import io.moquette.spi.impl.subscriptions.Subscription;
@@ -71,16 +71,20 @@ public interface ISessionsStore {
 
     /**
      * Add a new subscription to the session
+     * @param newSubscription the subscription to add.
      */
     void addNewSubscription(Subscription newSubscription);
 
     /**
      * Removed a specific subscription
+     * @param topic the topic of the subscription.
+     * @param clientID the session client.
      * */
     void removeSubscription(String topic, String clientID);
 
     /**
      * Remove all the subscriptions of the session
+     * @param sessionID the client ID
      */
     void wipeSubscriptions(String sessionID);
 
@@ -90,6 +94,7 @@ public interface ISessionsStore {
     List<ClientTopicCouple> listAllSubscriptions();
 
     /**
+     * @param couple the subscription descriptor.
      * @return the subscription stored by clientID and topicFilter, if any else null;
      * */
     Subscription getSubscription(ClientTopicCouple couple);
@@ -100,6 +105,7 @@ public interface ISessionsStore {
     List<Subscription> getSubscriptions();
 
     /**
+     * @param clientID the session client ID.
      * @return true iff there are subscriptions persisted with clientID
      */
     boolean contains(String clientID);
@@ -115,33 +121,34 @@ public interface ISessionsStore {
     void inFlightAck(String clientID, int messageID);
 
     /**
-     * Save the binding messageID, clientID <-> guid
+     * Save the binding messageID, clientID - guid
+     * @param clientID the client ID
+     * @param messageID the message ID
+     * @param guid the uuid of the message to mark as inflight.
      * */
     void inFlight(String clientID, int messageID, MessageGUID guid);
 
     /**
      * Return the next valid packetIdentifier for the given client session.
+     * @param clientID the clientID requesting next packet id.
+     * @return the next valid id.
      * */
     int nextPacketID(String clientID);
 
     /**
-     * Store the guid to be later published.
-     * */
-    void bindToDeliver(MessageGUID guid, String clientID);
-
-    /**
      * List the guids for retained messages for the session
+     * @param clientID the client ID owning the queue.
+     * @return the list of queue message UUIDs.
      * */
-    Collection<MessageGUID> enqueued(String clientID);
+    BlockingQueue<StoredMessage> queue(String clientID);
 
-    /**
-     * Remove form the queue of stored messages for session.
-     * */
-    void removeEnqueued(String clientID, MessageGUID guid);
+    void dropQueue(String clientID);
 
     void moveInFlightToSecondPhaseAckWaiting(String clientID, int messageID);
 
     /**
+     * @param clientID the client ID accessing the second phase.
+     * @param messageID the message ID that reached the second phase.
      * @return the guid of message just acked.
      * */
     MessageGUID secondPhaseAcknowledged(String clientID, int messageID);

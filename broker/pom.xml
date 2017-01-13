@@ -6,7 +6,7 @@
         <relativePath>../</relativePath>
         <artifactId>moquette-parent</artifactId>
         <groupId>io.moquette</groupId>
-        <version>0.9-SNAPSHOT</version>
+        <version>0.10-SNAPSHOT</version>
     </parent>
 
     <artifactId>moquette-broker</artifactId>
@@ -37,13 +37,6 @@
             <version>1.7.5</version>
         </dependency>
         
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>1.7.5</version>
-            <scope>runtime</scope>
-        </dependency>
-
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-common</artifactId>
@@ -115,6 +108,13 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>1.7.5</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- needs extra dependencies: objenesis & hamcrest -->
         <dependency>
             <groupId>org.mockito</groupId>
@@ -161,6 +161,29 @@
                         <include>**/*Test.java</include>
                     </includes>
                 </configuration>
+            </plugin>
+
+	    <!-- Includes to generate OSGi headers -->
+  	    <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>  
+                        <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+                    </archive> 
+                </configuration>
+            </plugin>  
+            <plugin>   
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>bundle-manifest</id>
+                        <phase>process-classes</phase>
+                        <goals>    
+                            <goal>manifest</goal>
+                        </goals>   
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

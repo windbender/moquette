@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -36,7 +36,9 @@ import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
+import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.Utf8FrameValidator;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -158,11 +160,12 @@ public class NettyAcceptor implements ServerAcceptor {
             void init(ChannelPipeline pipeline) {
                 pipeline.addFirst("idleStateHandler", new IdleStateHandler(0, 0, Constants.DEFAULT_CONNECT_TIMEOUT));
                 pipeline.addAfter("idleStateHandler", "idleEventHandler", timeoutHandler);
-                //pipeline.addLast("logger", new LoggingHandler("Netty", LogLevel.ERROR));
+//                pipeline.addLast("logger", new LoggingHandler("Netty", LogLevel.ERROR));
                 pipeline.addFirst("bytemetrics", new BytesMetricsHandler(m_bytesMetricsCollector));
                 pipeline.addLast("decoder", new MQTTDecoder());
                 pipeline.addLast("encoder", new MQTTEncoder());
                 pipeline.addLast("metrics", new MessageMetricsHandler(m_metricsCollector));
+                pipeline.addLast("messageLogger", new MQTTMessageLogger());
                 pipeline.addLast("handler", handler);
             }
         });
@@ -183,8 +186,7 @@ public class NettyAcceptor implements ServerAcceptor {
         initFactory(host, port, new PipelineInitializer() {
             @Override
             void init(ChannelPipeline pipeline) {
-                pipeline.addLast("httpEncoder", new HttpResponseEncoder());
-                pipeline.addLast("httpDecoder", new HttpRequestDecoder());
+                pipeline.addLast(new HttpServerCodec());
                 pipeline.addLast("aggregator", new HttpObjectAggregator(65536));
                 pipeline.addLast("webSocketHandler", new WebSocketServerProtocolHandler("/mqtt", MQTT_SUBPROTOCOL_CSV_LIST));
                 pipeline.addLast("ws2bytebufDecoder", new WebSocketFrameToByteBufDecoder());
@@ -195,6 +197,7 @@ public class NettyAcceptor implements ServerAcceptor {
                 pipeline.addLast("decoder", new MQTTDecoder());
                 pipeline.addLast("encoder", new MQTTEncoder());
                 pipeline.addLast("metrics", new MessageMetricsHandler(m_metricsCollector));
+                pipeline.addLast("messageLogger", new MQTTMessageLogger());
                 pipeline.addLast("handler", handler);
             }
         });
@@ -226,6 +229,7 @@ public class NettyAcceptor implements ServerAcceptor {
                 pipeline.addLast("decoder", new MQTTDecoder());
                 pipeline.addLast("encoder", new MQTTEncoder());
                 pipeline.addLast("metrics", new MessageMetricsHandler(m_metricsCollector));
+                pipeline.addLast("messageLogger", new MQTTMessageLogger());
                 pipeline.addLast("handler", handler);
             }
         });
@@ -259,6 +263,7 @@ public class NettyAcceptor implements ServerAcceptor {
                 pipeline.addLast("decoder", new MQTTDecoder());
                 pipeline.addLast("encoder", new MQTTEncoder());
                 pipeline.addLast("metrics", new MessageMetricsHandler(m_metricsCollector));
+                pipeline.addLast("messageLogger", new MQTTMessageLogger());
                 pipeline.addLast("handler", handler);
             }
         });

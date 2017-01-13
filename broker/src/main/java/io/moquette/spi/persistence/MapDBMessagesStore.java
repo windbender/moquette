@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -74,18 +74,18 @@ class MapDBMessagesStore implements IMessagesStore {
     }
 
     @Override
-    public MessageGUID storePublishForFuture(StoredMessage evt) {
-        LOG.debug("storePublishForFuture store evt {}", evt);
-        if (evt.getClientID() == null) {
-            LOG.error("persisting a message without a clientID, bad programming error msg: {}", evt);
-            throw new IllegalArgumentException("\"persisting a message without a clientID, bad programming error");
+    public MessageGUID storePublishForFuture(StoredMessage storedMessage) {
+        LOG.debug("storePublishForFuture store evt {}", storedMessage);
+        if (storedMessage.getClientID() == null) {
+            LOG.error("persisting a message without a clientID, bad programming error msg: {}", storedMessage);
+            throw new IllegalArgumentException("persisting a message without a clientID, bad programming error");
         }
         MessageGUID guid = new MessageGUID(UUID.randomUUID().toString());
-        evt.setGuid(guid);
+        storedMessage.setGuid(guid);
         LOG.debug("storePublishForFuture guid <{}>", guid);
-        m_persistentMessageStore.put(guid, evt);
-        ConcurrentMap<Integer, MessageGUID> messageIdToGuid = m_db.getHashMap(MapDBSessionsStore.messageId2GuidsMapName(evt.getClientID()));
-        messageIdToGuid.put(evt.getMessageID(), guid);
+        m_persistentMessageStore.put(guid, storedMessage);
+        ConcurrentMap<Integer, MessageGUID> messageIdToGuid = m_db.getHashMap(MapDBSessionsStore.messageId2GuidsMapName(storedMessage.getClientID()));
+        messageIdToGuid.put(storedMessage.getMessageID(), guid);
         return guid;
     }
 
@@ -115,10 +115,7 @@ class MapDBMessagesStore implements IMessagesStore {
     void removeStoredMessageIfNotRetainAndRefZero(MessageGUID guid) {
         //remove only the not retained and no more referenced
         StoredMessage storedMessage = m_persistentMessageStore.get(guid);
-        if (!storedMessage.isRetained() && storedMessage.getReferenceCounter() <= 0) {
-            if(storedMessage.getReferenceCounter() < 0) {
-                LOG.error("we should never have gotten a reference count less than zero");
-            }
+        if (!storedMessage.isRetained()) {
             LOG.debug("Cleaning not retained message guid {}", guid);
             m_persistentMessageStore.remove(guid);
         }
@@ -132,25 +129,5 @@ class MapDBMessagesStore implements IMessagesStore {
     @Override
     public void cleanRetained(String topic) {
         m_retainedStore.remove(topic);
-    }
-
-    @Override
-    public void incUsageCounter(MessageGUID guid) {
-        IMessagesStore.StoredMessage storedMessage = m_persistentMessageStore.get(guid);
-        if(storedMessage != null) {
-            storedMessage.incReferenceCounter();
-        } else {
-            LOG.error("attempt to increment ref count on null message {}",guid);
-        }
-    }
-
-    @Override
-    public void decUsageCounter(MessageGUID guid) {
-        IMessagesStore.StoredMessage storedMessage = m_persistentMessageStore.get(guid);
-        if(storedMessage != null) {
-            storedMessage.decReferenceCounter();
-        } else {
-            LOG.error("attempt to decrement ref count on null message {}",guid);
-        }
     }
 }

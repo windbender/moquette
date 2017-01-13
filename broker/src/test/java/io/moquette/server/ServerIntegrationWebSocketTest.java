@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -71,16 +71,17 @@ public class ServerIntegrationWebSocketTest {
     @Test
     public void checkPlainConnect() throws Exception {
         LOG.info("*** checkPlainConnect ***");
-        String destUri = "ws://localhost:" + BrokerConstants.WEBSOCKET_PORT;
+        String destUri = "ws://localhost:" + BrokerConstants.WEBSOCKET_PORT + "/mqtt";
         
         MQTTWebSocket socket = new MQTTWebSocket();
         client.start();
         URI echoUri = new URI(destUri);
         ClientUpgradeRequest request = new ClientUpgradeRequest();
         client.connect(socket, echoUri, request);
-        LOG.info("Connecting to : %s", echoUri);
+        LOG.info("Connecting to : {}", echoUri);
         boolean connected = socket.awaitConnected(4, TimeUnit.SECONDS);
-        
+        LOG.info("Connected was : {}", connected);
+
         assertTrue(connected);
     }
 }

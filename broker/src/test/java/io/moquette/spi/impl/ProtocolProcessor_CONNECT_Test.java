@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -317,6 +317,7 @@ public class ProtocolProcessor_CONNECT_Test {
 
         //subscribe
         SubscribeMessage subscribeMsg = new SubscribeMessage();
+        subscribeMsg.setMessageID(10);
         subscribeMsg.addSubscription(new SubscribeMessage.Couple((byte) AbstractMessage.QOSType.MOST_ONE.ordinal(),
                 ProtocolProcessorTest.FAKE_TOPIC));
         NettyUtils.clientID(m_session, ProtocolProcessorTest.FAKE_CLIENT_ID);

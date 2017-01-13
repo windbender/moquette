@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,7 +18,6 @@ package io.moquette.spi.impl;
 import io.moquette.parser.proto.messages.*;
 import io.moquette.interception.InterceptHandler;
 import io.moquette.parser.proto.messages.AbstractMessage.QOSType;
-import io.moquette.server.ConnectionDescriptor;
 import io.moquette.server.netty.NettyUtils;
 import io.moquette.spi.*;
 import io.moquette.spi.IMessagesStore.StoredMessage;
@@ -32,8 +31,12 @@ import org.junit.Test;
 
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.BlockingQueue;
+
 import static io.moquette.spi.impl.NettyChannelAssertions.assertConnAckAccepted;
+import static io.moquette.spi.impl.ProtocolProcessor.lowerQosToTheSubscriptionDesired;
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
 /**
@@ -215,6 +218,7 @@ public class ProtocolProcessorTest {
         //Exercise
         SubscribeMessage msg = new SubscribeMessage();
         msg.addSubscription(new SubscribeMessage.Couple(AbstractMessage.QOSType.MOST_ONE.byteValue(), FAKE_TOPIC));
+        msg.setMessageID(10);
         m_sessionStore.createNewSession(FAKE_CLIENT_ID, false);
         m_processor.processSubscribe(m_channel, msg);
 
@@ -236,6 +240,7 @@ public class ProtocolProcessorTest {
 
         //Exercise
         SubscribeMessage msg = new SubscribeMessage();
+        msg.setMessageID(10);
         msg.addSubscription(new SubscribeMessage.Couple(AbstractMessage.QOSType.MOST_ONE.byteValue(), FAKE_TOPIC));
         m_sessionStore.createNewSession(FAKE_CLIENT_ID, false);
         m_processor.processSubscribe(m_channel, msg);
@@ -251,6 +256,7 @@ public class ProtocolProcessorTest {
     @Test
     public void testDoubleSubscribe() {
         SubscribeMessage msg = new SubscribeMessage();
+        msg.setMessageID(10);
         msg.addSubscription(new SubscribeMessage.Couple(AbstractMessage.QOSType.MOST_ONE.byteValue(), FAKE_TOPIC));
         m_sessionStore.createNewSession(FAKE_CLIENT_ID, false);
         assertEquals(0, subscriptions.size());
@@ -270,6 +276,7 @@ public class ProtocolProcessorTest {
     @Test
     public void testSubscribeWithBadFormattedTopic() {
         SubscribeMessage msg = new SubscribeMessage();
+        msg.setMessageID(10);
         msg.addSubscription(new SubscribeMessage.Couple(AbstractMessage.QOSType.MOST_ONE.byteValue(), BAD_FORMATTED_TOPIC));
         m_sessionStore.createNewSession(FAKE_CLIENT_ID, false);
         assertEquals(0, subscriptions.size());
@@ -344,6 +351,7 @@ public class ProtocolProcessorTest {
 
         //Exercise
         SubscribeMessage msg = new SubscribeMessage();
+        msg.setMessageID(10);
         msg.addSubscription(new SubscribeMessage.Couple(QOSType.MOST_ONE.byteValue(), "#"));
         m_processor.processSubscribe(m_channel, msg);
         
@@ -375,8 +383,8 @@ public class ProtocolProcessorTest {
         m_processor.processConnect(m_channel, connectMessage);
 
         //Verify no messages are still stored
-        Collection<MessageGUID> guids = m_sessionStore.enqueued(FAKE_PUBLISHER_ID);
-        assertTrue(m_messagesStore.listMessagesInSession(guids).isEmpty());
+        BlockingQueue<StoredMessage> messages = m_sessionStore.queue(FAKE_PUBLISHER_ID);
+        assertTrue(messages.isEmpty());
     }
     
     @Test
@@ -443,55 +451,12 @@ public class ProtocolProcessorTest {
         assertTrue(messages.isEmpty());
     }
 
-    List<StoredMessage> publishedForwarded = new ArrayList<>();
-
     @Test
-    public void testForwardPublishWithCorrectQos() {
-        StoredMessage forwardPublish = new StoredMessage("Hello world MQTT!!".getBytes(), QOSType.EXACTLY_ONCE, "a/b");
-        forwardPublish.setRetained(true);
-        forwardPublish.setMessageID(1);
-
-        MemoryStorageService memStore = new MemoryStorageService();
-        memStore.initStore();
-        IMessagesStore memoryMessageStore = memStore.messagesStore();
-        ISessionsStore sessionsStore = memStore.sessionsStore();
-        sessionsStore.createNewSession("Sub A", false);
-        sessionsStore.createNewSession("Sub B", false);
-
+    public void testLowerTheQosToTheRequestedBySubscription() {
         Subscription subQos1 = new Subscription("Sub A", "a/b", QOSType.LEAST_ONE);
+        assertEquals(QOSType.LEAST_ONE, lowerQosToTheSubscriptionDesired(subQos1, QOSType.EXACTLY_ONCE));
+
         Subscription subQos2 = new Subscription("Sub B", "a/+", QOSType.EXACTLY_ONCE);
-        sessionsStore.addNewSubscription(subQos1);
-        sessionsStore.addNewSubscription(subQos2);
-        SubscriptionsStore subscriptions = new SubscriptionsStore();
-        subscriptions.init(sessionsStore);
-        subscriptions.add(subQos1.asClientTopicCouple());
-        subscriptions.add(subQos2.asClientTopicCouple());
-
-
-        ProtocolProcessor processor = new ProtocolProcessor() {
-            @Override
-            protected void directSend(ClientSession session, String topic, AbstractMessage.QOSType qos, ByteBuffer message,
-                                      boolean retained, Integer messageID) {
-                StoredMessage msgToStore = new StoredMessage(message.array(), qos, topic);
-                msgToStore.setRetained(retained);
-                msgToStore.setMessageID(messageID);
-                msgToStore.setClientID(session.clientID);
-                publishedForwarded.add(msgToStore);
-            }
-        };
-        processor.init(subscriptions, memoryMessageStore, sessionsStore, null, true, null, NO_OBSERVERS_INTERCEPTOR);
-        //just to activate the two sessions
-        processor.m_clientIDs.put("Sub A", new ConnectionDescriptor("Sub A", null, true));
-        processor.m_clientIDs.put("Sub B", new ConnectionDescriptor("Sub B", null, true));
-
-        //Exercise
-        processor.route2Subscribers(forwardPublish);
-
-        //Verify
-        assertEquals(2, publishedForwarded.size());
-        assertEquals(subQos1.getClientId(), publishedForwarded.get(0).getClientID());
-        assertEquals(subQos1.getRequestedQos(), publishedForwarded.get(0).getQos());
-        assertEquals(subQos2.getClientId(), publishedForwarded.get(1).getClientID());
-        assertEquals(subQos2.getRequestedQos(), publishedForwarded.get(1).getQos());
+        assertEquals(QOSType.EXACTLY_ONCE, lowerQosToTheSubscriptionDesired(subQos2, QOSType.EXACTLY_ONCE));
     }
 }

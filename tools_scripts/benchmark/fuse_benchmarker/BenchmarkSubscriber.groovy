@@ -62,13 +62,14 @@ class BenchmarkSubscriber {
                     double msgPerSec = (numReceived / spentTime) * 1000
                     println "SUB: Speed: $msgPerSec msg/sec"
                     println "SUB: Latency diagram"
-                    histogram.outputPercentileDistribution(System.out, 1000.0);
+                    histogram.outputPercentileDistribution(System.out, 1000.0); //nanos/1000
                     m_latch.countDown()
                 } else {
                     String message = payload as String
                     long sentTime = message.split('-')[1] as long
                     long delay = System.nanoTime() - sentTime
                     histogram.recordValue(delay)
+                    print '+'
                     numReceived++
 //        if ((numReceived % 10000) == 0) {
 //            print '.'

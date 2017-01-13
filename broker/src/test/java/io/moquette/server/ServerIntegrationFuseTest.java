@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -74,7 +74,7 @@ public class ServerIntegrationFuseTest {
 
     @Test
     public void checkWillTestamentIsPublishedOnConnectionKill_noRetain() throws Exception {
-        LOG.info("checkWillTestamentIsPublishedOnConnectionKill");
+        LOG.info("checkWillTestamentIsPublishedOnConnectionKill_noRetain");
         
         String willTestamentTopic = "/will/test";
         String willTestamentMsg = "Bye bye";
@@ -93,7 +93,6 @@ public class ServerIntegrationFuseTest {
         m_mqtt.setClientId("Subscriber");
         m_subscriber = m_mqtt.blockingConnection();
         m_subscriber.connect();
-//        Topic[] topics = new Topic[]{new Topic(willTestamentTopic, QoS.AT_LEAST_ONCE)};
         Topic[] topics = new Topic[]{new Topic(willTestamentTopic, QoS.AT_MOST_ONCE)};
         m_subscriber.subscribe(topics);
         

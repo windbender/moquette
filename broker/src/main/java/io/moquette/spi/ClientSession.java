@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,19 +16,14 @@
 package io.moquette.spi;
 
 import io.moquette.parser.proto.messages.AbstractMessage;
-import io.moquette.parser.proto.messages.PublishMessage;
-import io.moquette.server.Constants;
+import io.moquette.spi.ISessionsStore.ClientTopicCouple;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.SubscriptionsStore;
-import io.moquette.spi.ISessionsStore.ClientTopicCouple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 /**
@@ -61,7 +56,7 @@ public class ClientSession {
 
     private volatile boolean cleanSession;
 
-    private BlockingQueue<AbstractMessage> m_queueToPublish = new ArrayBlockingQueue<>(Constants.MAX_MESSAGE_QUEUE);
+//    private BlockingQueue<AbstractMessage> m_queueToPublish = new ArrayBlockingQueue<>(Constants.MAX_MESSAGE_QUEUE);
 
     public ClientSession(String clientID, IMessagesStore messagesStore, ISessionsStore sessionsStore,
                          boolean cleanSession) {
@@ -72,19 +67,14 @@ public class ClientSession {
     }
 
     /**
+     * Return the list of persisted publishes for the given clientID.
+     * For QoS1 and QoS2 with clean session flag, this method return the list of
+     * missed publish events while the client was disconnected.
+     *
      * @return the list of messages to be delivered for client related to the session.
      * */
-    public List<IMessagesStore.StoredMessage> storedMessages() {
-        //read all messages from enqueued store
-        Collection<MessageGUID> guids = this.m_sessionsStore.enqueued(clientID);
-        return messagesStore.listMessagesInSession(guids);
-    }
-
-    /**
-     * Remove the messages stored in a cleanSession false.
-     */
-    public void removeEnqueued(MessageGUID guid) {
-        this.m_sessionsStore.removeEnqueued(this.clientID, guid);
+    public BlockingQueue<IMessagesStore.StoredMessage> queue() {
+        return this.m_sessionsStore.queue(clientID);
     }
 
     @Override
@@ -171,25 +161,17 @@ public class ClientSession {
         return messagesStore.getMessageByGuid(guid);
     }
 
-    public void enqueueToDeliver(MessageGUID guid) {
-        this.m_sessionsStore.bindToDeliver(guid, this.clientID);
+    /**
+     * Enqueue a message to be sent to the client.
+     * @param message the message to enqueue.
+     * */
+    public void enqueue(IMessagesStore.StoredMessage message) {
+        this.m_sessionsStore.queue(this.clientID).add(message);
     }
 
     public IMessagesStore.StoredMessage storedMessage(int messageID) {
         final MessageGUID guid = m_sessionsStore.mapToGuid(clientID, messageID);
         return messagesStore.getMessageByGuid(guid);
-    }
-
-    /**
-     * Enqueue a message to be sent to the client.
-     * @return false if the queue is full.
-     * */
-    public boolean enqueue(PublishMessage pubMessage) {
-        return m_queueToPublish.offer(pubMessage);
-    }
-
-    public AbstractMessage dequeue() {
-        return m_queueToPublish.poll();
     }
 
     public void moveInFlightToSecondPhaseAckWaiting(int messageID) {

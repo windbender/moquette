@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -67,24 +67,15 @@ public class MemoryMessagesStore implements IMessagesStore {
     }
 
     @Override
-    public MessageGUID storePublishForFuture(StoredMessage evt) {
-        LOG.debug("storePublishForFuture store evt {}", evt);
+    public MessageGUID storePublishForFuture(StoredMessage storedMessage) {
+        LOG.debug("storePublishForFuture store evt {}", storedMessage);
         MessageGUID guid = new MessageGUID(UUID.randomUUID().toString());
-        evt.setGuid(guid);
-        m_persistentMessageStore.put(guid, evt);
+        storedMessage.setGuid(guid);
+        m_persistentMessageStore.put(guid, storedMessage);
         HashMap<Integer, MessageGUID> guids = (HashMap<Integer, MessageGUID>) defaultGet(m_messageToGuids,
-                evt.getClientID(), new HashMap<Integer, MessageGUID>());
-        guids.put(evt.getMessageID(), guid);
+                storedMessage.getClientID(), new HashMap<Integer, MessageGUID>());
+        guids.put(storedMessage.getMessageID(), guid);
         return guid;
-    }
-
-    @Override
-    public List<StoredMessage> listMessagesInSession(Collection<MessageGUID> guids) {
-        List<StoredMessage> ret = new ArrayList<>();
-        for (MessageGUID guid : guids) {
-            ret.add(m_persistentMessageStore.get(guid));
-        }
-        return ret;
     }
 
     @Override
@@ -106,19 +97,5 @@ public class MemoryMessagesStore implements IMessagesStore {
     @Override
     public void cleanRetained(String topic) {
         m_retainedStore.remove(topic);
-    }
-
-    @Override
-    public void incUsageCounter(MessageGUID guid) {
-        IMessagesStore.StoredMessage storedMessage = m_persistentMessageStore.get(guid);
-        storedMessage.incReferenceCounter();
-        m_persistentMessageStore.put(guid, storedMessage);
-    }
-
-    @Override
-    public void decUsageCounter(MessageGUID guid) {
-        IMessagesStore.StoredMessage storedMessage = m_persistentMessageStore.get(guid);
-        storedMessage.decReferenceCounter();
-        m_persistentMessageStore.put(guid, storedMessage);
     }
 }

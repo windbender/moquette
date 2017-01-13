@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -33,7 +33,13 @@ public class SubscribeMessage extends MessageIDMessage {
             this.qos = qos;
             this.topicFilter = topic;
         }
-        
+
+        @Override
+        public String toString() {
+            return "[qos=" + qos +
+                    ", topicFilter='" + topicFilter + '\'' +
+                    ']';
+        }
     }
     private List<Couple> m_subscriptions = new ArrayList<>();
 

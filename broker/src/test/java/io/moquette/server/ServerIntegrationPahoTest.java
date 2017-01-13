@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The original author or authors
+ * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -286,6 +286,7 @@ public class ServerIntegrationPahoTest {
         assertEquals("Hello MQTT", m_messagesCollector.getMessage(true).toString());
     }
 
+
     @Test
     public void checkReceivePublishedMessage_after_a_reconnect_with_notCleanSession() throws Exception {
         LOG.info("*** checkReceivePublishedMessage_after_a_reconnect_with_notCleanSession ***");
@@ -461,10 +462,10 @@ public class ServerIntegrationPahoTest {
         clientForPublish.publish("topic", "Hello".getBytes(), 2, true);
 
         //verify clientForSubscribe1 doesn't receive a notification but clientForSubscribe2 yes
-        System.out.println("Before waiting to receive 1 sec from " + clientForSubscribe1.getClientId());
+        LOG.info("Before waiting to receive 1 sec from " + clientForSubscribe1.getClientId());
         assertFalse(clientForSubscribe1.isConnected());
         assertTrue(clientForSubscribe2.isConnected());
-        System.out.println("Waiting to receive 1 sec from " + clientForSubscribe2.getClientId());
+        LOG.info("Waiting to receive 1 sec from " + clientForSubscribe2.getClientId());
         MqttMessage messageOnB = cbSubscriber2.getMessage(true);
         assertEquals("Hello", new String(messageOnB.getPayload()));
     }
@@ -474,13 +475,19 @@ public class ServerIntegrationPahoTest {
         LOG.info("*** testForceClientDisconnection_issue118 ***");
         MessageCollector cbSubscriber1 = new MessageCollector();
         MqttClient clientXA = createClient("subscriber", "X", cbSubscriber1);
+        LOG.info("Connected 'subscriber' first time");
         clientXA.subscribe("topic", 0);
+        LOG.info("Subscribed 'topic' from 'subscriber' first time");
 
         MqttClient clientXB = createClient("publisher", "X");
+        LOG.info("Connected 'publisher' first time");
         clientXB.publish("topic", "Hello".getBytes(), 2, false);
+        LOG.info("Published on 'topic' from 'publisher' first time");
 
+        LOG.info("Creating second new 'subscriber'");
         MessageCollector cbSubscriber2 = new MessageCollector();
         MqttClient clientYA = createClient("subscriber", "Y", cbSubscriber2);
+        LOG.info("Connected 'subscriber' second time");
         clientYA.subscribe("topic", 0);
 
         MqttClient clientYB = createClient("publisher", "Y");

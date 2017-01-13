@@ -1,4 +1,4 @@
-@Grab(group='org.fusesource.mqtt-client', module='mqtt-client', version='1.10')
+@Grab(group='org.fusesource.mqtt-client', module='mqtt-client', version='1.14')
 @Grab(group='org.eclipse.jetty.toolchain', module='jetty-perf-helper', version='1.0.5')
 
 import java.net.URISyntaxException
@@ -28,6 +28,8 @@ if (args.size() < 3) {
     println "should take 2 secs"
     return
 }
+
+println "*** Histogram measures are in microseconds ***"
 
 String host = args[0]
 int numToSend = args[1] as int
