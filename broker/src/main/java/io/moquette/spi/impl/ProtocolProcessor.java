@@ -16,6 +16,7 @@
 package io.moquette.spi.impl;
 
 import java.nio.ByteBuffer;
+import java.sql.Connection;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -375,7 +376,7 @@ public class ProtocolProcessor {
         int flushIntervalMs = 500/*(keepAlive * 1000) / 2*/;
         setupAutoFlusher(descriptor.channel.pipeline(), flushIntervalMs);
         LOG.info("CONNECT processed");
-        recordReceivedMessageTime(channel);
+        recordReceivedMessageTime(descriptor.channel);
         return true;
     }
 
@@ -665,8 +666,7 @@ public class ProtocolProcessor {
         String username = NettyUtils.userName(descriptor.channel);
         m_interceptor.notifyClientDisconnected(clientID, username);
 //        this.connectionsStatus.remove(clientID, ConnectState.DISCONNECTED);
-        this.connectionsStatus.remove(clientID);
-        LOG.info("DISCONNECT client <{}> finished", clientID, cleanSession);
+        LOG.info("DISCONNECT client <{}> finished", clientID );
 
         return true;
     }
@@ -887,14 +887,14 @@ public class ProtocolProcessor {
     }
     private void recordReceivedMessageTime(Channel channel) {
         String clientID = NettyUtils.clientID(channel);
-        ConnectionDescriptor conDesc = m_clientIDs.get(clientID);
+        final ConnectionDescriptor conDesc = this.connectionDescriptors.get(clientID);
         if(conDesc != null) {
             conDesc.mostRecentReceivedMsgTime = new Date();
         }
     }
 
-    public Date mostRecentPing(String clientId) {
-        ConnectionDescriptor conDesc = m_clientIDs.get(clientId);
+    public Date mostRecentPing(String clientID) {
+        final ConnectionDescriptor conDesc = this.connectionDescriptors.get(clientID);
         if(conDesc == null) return null;
         return conDesc.mostRecentReceivedMsgTime;
     }
@@ -903,7 +903,7 @@ public class ProtocolProcessor {
         TreeMap<String,Date> recentPings = new TreeMap<String,Date>();
         Date now = new Date();
         long cutoff = now.getTime() - cutoffAgeSeconds * 1000;
-        for( Map.Entry<String, ConnectionDescriptor> entry: m_clientIDs.entrySet()) {
+        for( Map.Entry<String,ConnectionDescriptor> entry : this.connectionDescriptors.entrySet()) {
             if(entry.getValue().mostRecentReceivedMsgTime != null) {
                 if(entry.getValue().mostRecentReceivedMsgTime.getTime() > cutoff) {
                     recentPings.put(entry.getValue().clientID,entry.getValue().mostRecentReceivedMsgTime);
