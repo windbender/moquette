@@ -23,7 +23,6 @@ import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-import io.netty.handler.codec.CorruptedFrameException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +49,8 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
         AbstractMessage msg = (AbstractMessage) message;
         SocketAddress rmAddr = ctx.channel().remoteAddress();
         String clientID = NettyUtils.clientID(ctx.channel());
-        LOG.info("Received a message of type {} from {} at {}", Utils.msgType2String(msg.getMessageType()),clientID,rmAddr);
+        String messageType = Utils.msgType2String(msg.getMessageType());
+        LOG.info("Processing MQTT message. Of type {} from {} at {}", messageType,clientID,rmAddr);
 
         try {
             switch (msg.getMessageType()) {
@@ -85,9 +85,11 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
                     m_processor.processPingReq(ctx.channel(), (PingReqMessage) msg);
                     break;
             }
-        } catch (Exception ex) {
-            LOG.error("Bad error in processing the message", ex);
-            ctx.fireExceptionCaught(ex);
+        } catch (Throwable ex) {
+			LOG.error(
+					"An unexpected exception was caught while processing MQTT message. MessageType = {}, cause = {}, errorMessage = {}.",
+					messageType, ex.getCause(), ex.getMessage());
+			ctx.fireExceptionCaught(ex);
         }
     }
     
@@ -95,6 +97,7 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         String clientID = NettyUtils.clientID(ctx.channel());
         if (clientID != null && !clientID.isEmpty()) {
+			LOG.info("Notifying connection lost event. MqttClientId = {}.", clientID);
             m_processor.processConnectionLost(clientID, ctx.channel());
         }
         ctx.close();
@@ -102,14 +105,9 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        if (cause instanceof CorruptedFrameException) {
-            //something goes bad with decoding
-            LOG.warn("Error decoding a packet, probably a bad formatted packet, message: " + cause.getMessage());
-        } else if (cause instanceof IOException && "Connection reset by peer".equals(cause.getMessage())) {
-            LOG.warn("Network connection closed abruptly");
-        } else {
-            LOG.error("Ugly error on networking", cause);
-        }
+		LOG.error(
+				"An unexpected exception was caught while processing MQTT message. Closing Netty channel. MqttClientId = {}, cause = {}, errorMessage = {}.",
+				NettyUtils.clientID(ctx.channel()), cause.getCause(), cause.getMessage());
         ctx.close();
     }
 

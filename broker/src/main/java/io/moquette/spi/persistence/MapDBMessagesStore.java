@@ -48,19 +48,20 @@ class MapDBMessagesStore implements IMessagesStore {
 
     @Override
     public void initStore() {
+        LOG.info("Initializing store...");
         m_retainedStore = m_db.getHashMap("retained");
         m_persistentMessageStore = m_db.getHashMap("persistedMessages");
     }
 
     @Override
     public void storeRetained(String topic, MessageGUID guid) {
+        LOG.debug("Storing retained messages. Topic = {}, guid = {}.", topic, guid);
         m_retainedStore.put(topic, guid);
     }
 
     @Override
     public Collection<StoredMessage> searchMatching(IMatchingCondition condition) {
-        LOG.debug("searchMatching scanning all retained messages, presents are {}", m_retainedStore.size());
-
+        LOG.debug("Scanning retained messages...");
         List<StoredMessage> results = new ArrayList<>();
         for (Map.Entry<String, MessageGUID> entry : m_retainedStore.entrySet()) {
             final MessageGUID guid = entry.getValue();
@@ -70,19 +71,20 @@ class MapDBMessagesStore implements IMessagesStore {
             }
         }
 
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("The retained messages have been scanned. MatchingMessages = {}.", results);
+        }
+
         return results;
     }
 
     @Override
     public MessageGUID storePublishForFuture(StoredMessage storedMessage) {
-        LOG.debug("storePublishForFuture store evt {}", storedMessage);
-        if (storedMessage.getClientID() == null) {
-            LOG.error("persisting a message without a clientID, bad programming error msg: {}", storedMessage);
-            throw new IllegalArgumentException("persisting a message without a clientID, bad programming error");
-        }
+        assert storedMessage.getClientID() != null : "The message to be persisted must have a valid client ID";
         MessageGUID guid = new MessageGUID(UUID.randomUUID().toString());
         storedMessage.setGuid(guid);
-        LOG.debug("storePublishForFuture guid <{}>", guid);
+        LOG.debug("Storing publish event. MqttClientId = {}, messageId = {}, guid = {}, topic = {}.",
+                storedMessage.getClientID(), storedMessage.getMessageID(), guid, storedMessage.getTopic());
         m_persistentMessageStore.put(guid, storedMessage);
         ConcurrentMap<Integer, MessageGUID> messageIdToGuid = m_db.getHashMap(MapDBSessionsStore.messageId2GuidsMapName(storedMessage.getClientID()));
         messageIdToGuid.put(storedMessage.getMessageID(), guid);
@@ -105,6 +107,7 @@ class MapDBMessagesStore implements IMessagesStore {
 
     @Override
     public void dropMessagesInSession(String clientID) {
+        LOG.debug("Dropping stored messages. ClientId = {}.", clientID);
         ConcurrentMap<Integer, MessageGUID> messageIdToGuid = m_db.getHashMap(MapDBSessionsStore.messageId2GuidsMapName(clientID));
         for (MessageGUID guid : messageIdToGuid.values()) {
             removeStoredMessageIfNotRetainAndRefZero(guid);
@@ -116,18 +119,28 @@ class MapDBMessagesStore implements IMessagesStore {
         //remove only the not retained and no more referenced
         StoredMessage storedMessage = m_persistentMessageStore.get(guid);
         if (!storedMessage.isRetained()) {
-            LOG.debug("Cleaning not retained message guid {}", guid);
+            LOG.debug("Dropping stored message. ClientId = {}, messageId = {}, guid = {}, topic = {}.",
+                    storedMessage.getClientID(), storedMessage.getMessageID(), guid, storedMessage.getTopic());
             m_persistentMessageStore.remove(guid);
         }
     }
 
     @Override
     public StoredMessage getMessageByGuid(MessageGUID guid) {
+        LOG.debug("Retrieving stored message. Guid = {}.", guid);
         return m_persistentMessageStore.get(guid);
     }
 
     @Override
     public void cleanRetained(String topic) {
+        LOG.debug("Cleaning retained messages. Topic = {}.", topic);
         m_retainedStore.remove(topic);
+    }
+
+    @Override
+    public int getPendingPublishMessages(String clientID) {
+        ConcurrentMap<Integer, MessageGUID> messageIdToGuidMap = m_db
+                .getHashMap(MapDBSessionsStore.messageId2GuidsMapName(clientID));
+        return messageIdToGuidMap.size();
     }
 }

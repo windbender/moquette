@@ -51,10 +51,11 @@ public class SubscriptionsStore {
         try {
             parseTopic(topicFilter);
             return true;
-        } catch (ParseException pex) {
-            LOG.info("Bad matching topic filter <{}>", topicFilter);
-            return false;
-        }
+		} catch (ParseException pex) {
+			LOG.warn("The topic filter is malformed. TopicFilter = {}, cause = {}, errorMessage = {}.", topicFilter,
+					pex.getCause(), pex.getMessage());
+			return false;
+		}
     }
 
     public interface IVisitor<T> {
@@ -103,24 +104,27 @@ public class SubscriptionsStore {
      * @param sessionsStore to be used as backing store from the subscription store.
      */
     public void init(ISessionsStore sessionsStore) {
-        LOG.debug("init invoked");
+        LOG.info("Initializing subscriptions store...");
         m_sessionsStore = sessionsStore;
         List<ClientTopicCouple> subscriptions = sessionsStore.listAllSubscriptions();
         //reload any subscriptions persisted
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Reloading all stored subscriptions...subscription tree before {}", dumpTree());
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Reloading all stored subscriptions. SubscriptionTree = {}.", dumpTree());
         }
 
         for (ClientTopicCouple clientTopic : subscriptions) {
-            LOG.debug("Re-subscribing {} to topic {}", clientTopic.clientID, clientTopic.topicFilter);
+            LOG.info("Re-subscribing client to topic. ClientId = {}, topicFilter = {}.", clientTopic.clientID, clientTopic.topicFilter);
             add(clientTopic);
         }
         if (LOG.isTraceEnabled()) {
-            LOG.trace("Finished loading. Subscription tree after {}", dumpTree());
+            LOG.trace("The stored subscriptions have been reloaded. SubscriptionTree = {}.", dumpTree());
         }
     }
 
     public void add(ClientTopicCouple newSubscription) {
+    	/*
+    	 * The topic filters have already been validated at the ProtocolProcessor. We can assume they are valid.
+    	 */
         TreeNode oldRoot;
         NodeCouple couple;
         do {
@@ -129,17 +133,19 @@ public class SubscriptionsStore {
             couple.createdNode.addSubscription(newSubscription); //createdNode could be null?
             //spin lock repeating till we can, swap root, if can't swap just re-do the operation
         } while(!subscriptions.compareAndSet(oldRoot, couple.root));
-        LOG.debug("root ref {}, original root was {}", couple.root, oldRoot);
+        LOG.debug("A subscription has been added. Root = {}, oldRoot = {}.", couple.root, oldRoot);
     }
 
 
     protected NodeCouple recreatePath(String topic, final TreeNode oldRoot) {
-        List<Token> tokens = new ArrayList<>();
+        List<Token> tokens;
         try {
             tokens = parseTopic(topic);
         } catch (ParseException ex) {
             //TODO handle the parse exception
-            LOG.error(null, ex);
+			LOG.error("The topic is malformed. Topic = {}, cause = {}, errorMessage = {}.", topic, ex.getCause(),
+					ex.getMessage());
+			throw new IllegalArgumentException(ex.getMessage());
         }
 
         final TreeNode newRoot = oldRoot.copy();
@@ -167,6 +173,9 @@ public class SubscriptionsStore {
     }
 
     public void removeSubscription(String topic, String clientID) {
+    	/*
+    	 * The topic filters have already been validated at the ProtocolProcessor. We can assume they are valid.
+    	 */
         TreeNode oldRoot;
         NodeCouple couple;
         do {
@@ -208,7 +217,7 @@ public class SubscriptionsStore {
             tokens = parseTopic(topic);
         } catch (ParseException ex) {
             //TODO handle the parse exception
-            LOG.error(null, ex);
+            LOG.warn("The topic is malformed. Topic = {}, cause = {}, errorMessage = {}.", topic, ex.getCause(), ex.getMessage());
             return Collections.emptyList();
         }
 
@@ -247,7 +256,7 @@ public class SubscriptionsStore {
         return visitor.getResult();
     }
     
-    private void bfsVisit(TreeNode node, IVisitor visitor, int deep) {
+    private void bfsVisit(TreeNode node, IVisitor<?> visitor, int deep) {
         if (node == null) {
             return;
         }
@@ -294,8 +303,10 @@ public class SubscriptionsStore {
 //            }
             return i == msgTokens.size();
         } catch (ParseException ex) {
-            LOG.error(null, ex);
-            throw new RuntimeException(ex);
+			LOG.error(
+					"The message topic, the subscription topic or both are malformed. MsgTopic = {}, subscriptionTopic = {}, cause = {}, errorMessage = {}.",
+					msgTopic, subscriptionTopic, ex.getCause(), ex.getMessage());
+			throw new IllegalStateException(ex.getMessage());
         }
     }
     

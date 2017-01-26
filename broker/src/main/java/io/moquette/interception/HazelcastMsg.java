@@ -9,6 +9,7 @@ import java.io.Serializable;
  */
 public class HazelcastMsg implements Serializable {
 
+    private static final long serialVersionUID = -1431584750134928273L;
     private final String clientId;
     private final byte qos;
     private final byte[] payload;
