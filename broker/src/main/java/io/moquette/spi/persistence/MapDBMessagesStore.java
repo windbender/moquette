@@ -89,19 +89,19 @@ class MapDBMessagesStore implements IMessagesStore {
         return guid;
     }
 
-    @Override
-    public List<StoredMessage> listMessagesInSession(Collection<MessageGUID> guids) {
-        List<StoredMessage> ret = new ArrayList<>();
-        for (MessageGUID guid : guids) {
-            StoredMessage e = m_persistentMessageStore.get(guid);
-            if(e != null) {
-                ret.add(e);
-            } else {
-                LOG.error("null value for stored message retrieved with on guid={} ",guid);
-            }
-        }
-        return ret;
-    }
+//    @Override
+//    public List<StoredMessage> listMessagesInSession(Collection<MessageGUID> guids) {
+//        List<StoredMessage> ret = new ArrayList<>();
+//        for (MessageGUID guid : guids) {
+//            StoredMessage e = m_persistentMessageStore.get(guid);
+//            if(e != null) {
+//                ret.add(e);
+//            } else {
+//                LOG.error("null value for stored message retrieved with on guid={} ",guid);
+//            }
+//        }
+//        return ret;
+//    }
 
     @Override
     public void dropMessagesInSession(String clientID) {
