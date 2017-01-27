@@ -407,7 +407,7 @@ public class ProtocolProcessor {
         }
         int flushIntervalMs = 500/*(keepAlive * 1000) / 2*/;
         LOG.info("CONNECT processed");
-        recordReceivedMessageTime(descriptor.channel);
+        recordReceivedMessageTime(descriptor.getChannel());
         descriptor.setupAutoFlusher(flushIntervalMs);
         return true;
     }
@@ -930,14 +930,14 @@ public class ProtocolProcessor {
     }
     private void recordReceivedMessageTime(Channel channel) {
         String clientID = NettyUtils.clientID(channel);
-        final ConnectionDescriptor conDesc = this.connectionDescriptors.get(clientID);
+        final ConnectionDescriptor conDesc = this.connectionDescriptors.getConnection(clientID);
         if(conDesc != null) {
             conDesc.mostRecentReceivedMsgTime = new Date();
         }
     }
 
     public Date mostRecentPing(String clientID) {
-        final ConnectionDescriptor conDesc = this.connectionDescriptors.get(clientID);
+        final ConnectionDescriptor conDesc = this.connectionDescriptors.getConnection(clientID);
         if(conDesc == null) return null;
         return conDesc.mostRecentReceivedMsgTime;
     }
@@ -946,10 +946,11 @@ public class ProtocolProcessor {
         TreeMap<String,Date> recentPings = new TreeMap<String,Date>();
         Date now = new Date();
         long cutoff = now.getTime() - cutoffAgeSeconds * 1000;
-        for( Map.Entry<String,ConnectionDescriptor> entry : this.connectionDescriptors.entrySet()) {
-            if(entry.getValue().mostRecentReceivedMsgTime != null) {
-                if(entry.getValue().mostRecentReceivedMsgTime.getTime() > cutoff) {
-                    recentPings.put(entry.getValue().clientID,entry.getValue().mostRecentReceivedMsgTime);
+        for( String clientID : this.connectionDescriptors.getConnectedClientIds()) {
+            final ConnectionDescriptor conDesc = this.connectionDescriptors.getConnection(clientID);
+            if(conDesc.mostRecentReceivedMsgTime != null) {
+                if(conDesc.mostRecentReceivedMsgTime.getTime() > cutoff) {
+                    recentPings.put(conDesc.clientID,conDesc.mostRecentReceivedMsgTime);
                 }
             }
         }

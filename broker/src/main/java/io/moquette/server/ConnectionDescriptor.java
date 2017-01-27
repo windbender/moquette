@@ -95,6 +95,9 @@ public class ConnectionDescriptor {
     	return NettyUtils.userName(this.channel);
     }
 
+    public Channel getChannel() {
+        return this.channel;
+    }
     public void abort() {
     	LOG.info("Closing connection descriptor. MqttClientId = {}.", clientID);
 //        try {
