@@ -168,6 +168,9 @@ public class ServerIntegrationEmbeddedPublishTest {
         subscribeToWithQos("/topic", 0);
 
         //Verify
+        // really we need something that verifies there was a message _retained_
+        // we certainly will NOT receive a message if we never subscribed.
+        // this test is not valid.
         verifyNoMessageIsReceived();
     }
 
