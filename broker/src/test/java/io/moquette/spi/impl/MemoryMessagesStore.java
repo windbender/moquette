@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
+ * Copyright (c) 2012-2017 The original author or authors
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,16 +13,16 @@
  *
  * You may elect to redistribute this code under either of these licenses.
  */
+
 package io.moquette.spi.impl;
 
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.IMatchingCondition;
 import io.moquette.spi.MessageGUID;
+import io.moquette.spi.impl.subscriptions.Topic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.*;
-
 import static io.moquette.spi.impl.Utils.defaultGet;
 
 /**
@@ -32,12 +32,11 @@ public class MemoryMessagesStore implements IMessagesStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(MemoryMessagesStore.class);
 
-    private Map<String, MessageGUID> m_retainedStore = new HashMap<>();
+    private Map<Topic, MessageGUID> m_retainedStore = new HashMap<>();
     private Map<MessageGUID, StoredMessage> m_persistentMessageStore = new HashMap<>();
-    private Map<String, Map<Integer, MessageGUID>> m_messageToGuids;
+    private Map<String, Map<Integer, MessageGUID>> m_messageToGuids = new HashMap<>();
 
-    MemoryMessagesStore(Map<String, Map<Integer, MessageGUID>> messageToGuids) {
-        m_messageToGuids = messageToGuids;
+    MemoryMessagesStore() {
     }
 
     @Override
@@ -45,7 +44,7 @@ public class MemoryMessagesStore implements IMessagesStore {
     }
 
     @Override
-    public void storeRetained(String topic, MessageGUID guid) {
+    public void storeRetained(Topic topic, MessageGUID guid) {
         m_retainedStore.put(topic, guid);
     }
 
@@ -55,7 +54,7 @@ public class MemoryMessagesStore implements IMessagesStore {
 
         List<StoredMessage> results = new ArrayList<>();
 
-        for (Map.Entry<String, MessageGUID> entry : m_retainedStore.entrySet()) {
+        for (Map.Entry<Topic, MessageGUID> entry : m_retainedStore.entrySet()) {
             final MessageGUID guid = entry.getValue();
             StoredMessage storedMsg = m_persistentMessageStore.get(guid);
             if (condition.match(entry.getKey())) {
@@ -72,8 +71,10 @@ public class MemoryMessagesStore implements IMessagesStore {
         MessageGUID guid = new MessageGUID(UUID.randomUUID().toString());
         storedMessage.setGuid(guid);
         m_persistentMessageStore.put(guid, storedMessage);
-        HashMap<Integer, MessageGUID> guids = (HashMap<Integer, MessageGUID>) defaultGet(m_messageToGuids,
-                storedMessage.getClientID(), new HashMap<Integer, MessageGUID>());
+        HashMap<Integer, MessageGUID> guids = (HashMap<Integer, MessageGUID>) defaultGet(
+                m_messageToGuids,
+                storedMessage.getClientID(),
+                new HashMap<Integer, MessageGUID>());
         guids.put(storedMessage.getMessageID(), guid);
         return guid;
     }
@@ -95,7 +96,7 @@ public class MemoryMessagesStore implements IMessagesStore {
     }
 
     @Override
-    public void cleanRetained(String topic) {
+    public void cleanRetained(Topic topic) {
         m_retainedStore.remove(topic);
     }
 
@@ -106,5 +107,12 @@ public class MemoryMessagesStore implements IMessagesStore {
             return 0;
         else
             return messageToGuids.size();
+    }
+
+    @Override
+    public MessageGUID mapToGuid(String clientID, int messageID) {
+        HashMap<Integer, MessageGUID> guids = (HashMap<Integer, MessageGUID>) Utils
+                .defaultGet(m_messageToGuids, clientID, new HashMap<Integer, MessageGUID>());
+        return guids.get(messageID);
     }
 }

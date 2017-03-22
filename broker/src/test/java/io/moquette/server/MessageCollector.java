@@ -13,12 +13,12 @@
  *
  * You may elect to redistribute this code under either of these licenses.
  */
+
 package io.moquette.server;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-
 import java.util.concurrent.*;
 
 /**
@@ -27,6 +27,7 @@ import java.util.concurrent.*;
 public class MessageCollector implements MqttCallback {
 
     private class ReceivedMessage {
+
         private final MqttMessage message;
         private final String topic;
 
@@ -39,14 +40,21 @@ public class MessageCollector implements MqttCallback {
     private BlockingQueue<ReceivedMessage> m_messages = new LinkedBlockingQueue<>();
     private boolean m_connectionLost = false;
 
-    public MqttMessage getMessage(boolean checkElapsed) {
-        if (!checkElapsed && m_messages.isEmpty()) {
+    /**
+     * Return the message from the queue if not empty, else return null with wait period.
+     */
+    public MqttMessage getMessageImmediate() {
+        if (m_messages.isEmpty()) {
             return null;
         }
-        return getMessage(1);
+        try {
+            return m_messages.take().message;
+        } catch (InterruptedException e) {
+            return null;
+        }
     }
 
-    public MqttMessage getMessage(int delay) {
+    public MqttMessage waitMessage(int delay) {
         try {
             ReceivedMessage msg = m_messages.poll(delay, TimeUnit.SECONDS);
             if (msg == null) {
@@ -87,13 +95,13 @@ public class MessageCollector implements MqttCallback {
 
     /**
      * Invoked when the message sent to a server is ACKED (PUBACK or PUBCOMP by the server)
-     * */
+     */
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
-//        try {
-//            m_messages.offer(new ReceivedMessage(token.getMessage(), token.getTopics()[0]));
-//        } catch (MqttException e) {
-//            e.printStackTrace();
-//        }
+        // try {
+        // m_messages.offer(new ReceivedMessage(token.waitMessage(), token.getTopics()[0]));
+        // } catch (MqttException e) {
+        // e.printStackTrace();
+        // }
     }
 }

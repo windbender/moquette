@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
+ * Copyright (c) 2012-2017 The original author or authors
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,22 +13,20 @@
  *
  * You may elect to redistribute this code under either of these licenses.
  */
+
 package io.moquette.server.netty;
 
-import io.moquette.parser.proto.Utils;
-import io.moquette.parser.proto.messages.*;
 import io.moquette.spi.impl.ProtocolProcessor;
-import static io.moquette.parser.proto.messages.AbstractMessage.*;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-
-
+import io.netty.handler.codec.mqtt.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
 import java.io.IOException;
+import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
 /**
  *
@@ -36,7 +34,7 @@ import java.io.IOException;
  */
 @Sharable
 public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(NettyMQTTHandler.class);
     private final ProtocolProcessor m_processor;
 
@@ -46,58 +44,55 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object message) {
-        AbstractMessage msg = (AbstractMessage) message;
-        SocketAddress rmAddr = ctx.channel().remoteAddress();
+        MqttMessage msg = (MqttMessage) message;
+        MqttMessageType messageType = msg.fixedHeader().messageType();
         String clientID = NettyUtils.clientID(ctx.channel());
-        String messageType = Utils.msgType2String(msg.getMessageType());
-        LOG.info("Processing MQTT message. Of type {} from {} at {}", messageType,clientID,rmAddr);
-
+        SocketAddress rmAddr = ctx.channel().remoteAddress();
+        LOG.debug("Processing MQTT message, type={} from {} at {}", messageType);
         try {
-            switch (msg.getMessageType()) {
+            switch (messageType) {
                 case CONNECT:
-                    m_processor.processConnect(ctx.channel(), (ConnectMessage) msg);
+                    m_processor.processConnect(ctx.channel(), (MqttConnectMessage) msg);
                     break;
                 case SUBSCRIBE:
-                    m_processor.processSubscribe(ctx.channel(), (SubscribeMessage) msg);
+                    m_processor.processSubscribe(ctx.channel(), (MqttSubscribeMessage) msg);
                     break;
                 case UNSUBSCRIBE:
-                    m_processor.processUnsubscribe(ctx.channel(), (UnsubscribeMessage) msg);
+                    m_processor.processUnsubscribe(ctx.channel(), (MqttUnsubscribeMessage) msg);
                     break;
                 case PUBLISH:
-                    m_processor.processPublish(ctx.channel(), (PublishMessage) msg);
+                    m_processor.processPublish(ctx.channel(), (MqttPublishMessage) msg);
                     break;
                 case PUBREC:
-                    m_processor.processPubRec(ctx.channel(), (PubRecMessage) msg);
+                    m_processor.processPubRec(ctx.channel(), msg);
                     break;
                 case PUBCOMP:
-                    m_processor.processPubComp(ctx.channel(), (PubCompMessage) msg);
+                    m_processor.processPubComp(ctx.channel(), msg);
                     break;
                 case PUBREL:
-                    m_processor.processPubRel(ctx.channel(), (PubRelMessage) msg);
+                    m_processor.processPubRel(ctx.channel(), msg);
                     break;
                 case DISCONNECT:
                     m_processor.processDisconnect(ctx.channel());
                     break;
                 case PUBACK:
-                    m_processor.processPubAck(ctx.channel(), (PubAckMessage) msg);
+                    m_processor.processPubAck(ctx.channel(), (MqttPubAckMessage) msg);
                     break;
                 case PINGREQ:
-                    m_processor.processPingReq(ctx.channel(), (PingReqMessage) msg);
+                    m_processor.processPingReq(ctx,  msg);
                     break;
             }
         } catch (Throwable ex) {
-			LOG.error(
-					"An unexpected exception was caught while processing MQTT message. MessageType = {}, cause = {}, errorMessage = {}.",
-					messageType, ex.getCause(), ex.getMessage());
-			ctx.fireExceptionCaught(ex);
+            LOG.error("Exception was caught while processing MQTT message, " + ex.getCause(), ex);
+            ctx.fireExceptionCaught(ex);
         }
     }
-    
+
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         String clientID = NettyUtils.clientID(ctx.channel());
         if (clientID != null && !clientID.isEmpty()) {
-			LOG.info("Notifying connection lost event. MqttClientId = {}.", clientID);
+            LOG.info("Notifying connection lost event. MqttClientId = {}.", clientID);
             m_processor.processConnectionLost(clientID, ctx.channel());
         }
         ctx.close();
@@ -105,9 +100,12 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		LOG.error(
-				"An unexpected exception was caught while processing MQTT message. Closing Netty channel. MqttClientId = {}, cause = {}, errorMessage = {}.",
-				NettyUtils.clientID(ctx.channel()), cause.getCause(), cause.getMessage());
+        LOG.error(
+                "An unexpected exception was caught while processing MQTT message. "
+                + "Closing Netty channel. MqttClientId = {}, cause = {}, errorMessage = {}.",
+                NettyUtils.clientID(ctx.channel()),
+                cause.getCause(),
+                cause.getMessage());
         ctx.close();
     }
 

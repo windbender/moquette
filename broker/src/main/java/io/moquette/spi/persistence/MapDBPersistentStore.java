@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
+ * Copyright (c) 2012-2017 The original author or authors
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,32 +19,31 @@ package io.moquette.spi.persistence;
 import io.moquette.server.config.IConfig;
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.ISessionsStore;
-import io.moquette.parser.proto.MQTTException;
+import io.moquette.spi.IStore;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import static io.moquette.BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME;
 import static io.moquette.BrokerConstants.AUTOSAVE_INTERVAL_PROPERTY_NAME;
+import static io.moquette.BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME;
 
 /**
  * MapDB main persistence implementation
  */
-public class MapDBPersistentStore {
+public class MapDBPersistentStore implements IStore {
 
     /**
-     * This is a DTO used to persist minimal status (clean session and activation status) of
-     * a session.
-     * */
+     * This is a DTO used to persist minimal status (clean session and activation status) of a
+     * session.
+     */
     public static class PersistentSession implements Serializable {
+
         private static final long serialVersionUID = 5052054783220481854L;
         public final boolean cleanSession;
 
@@ -60,8 +59,8 @@ public class MapDBPersistentStore {
     private final int m_autosaveInterval; // in seconds
 
     protected final ScheduledExecutorService m_scheduler = Executors.newScheduledThreadPool(1);
-    private MapDBMessagesStore m_messageStore;
-    private MapDBSessionsStore m_sessionsStore;
+    private IMessagesStore m_messageStore;
+    private ISessionsStore m_sessionsStore;
 
     public MapDBPersistentStore(IConfig props) {
         this.m_storePath = props.getProperty(PERSISTENT_STORE_PROPERTY_NAME, "");
@@ -70,16 +69,19 @@ public class MapDBPersistentStore {
 
     /**
      * Factory method to create message store backed by MapDB
+     *
      * @return the message store instance.
-     * */
+     */
+    @Override
     public IMessagesStore messagesStore() {
         return m_messageStore;
     }
 
+    @Override
     public ISessionsStore sessionsStore() {
         return m_sessionsStore;
     }
-    
+
     public void initStore() {
         LOG.info("Initializing MapDB store...");
         if (m_storePath == null || m_storePath.isEmpty()) {
@@ -93,13 +95,20 @@ public class MapDBPersistentStore {
                 boolean fileNewlyCreated = tmpFile.createNewFile();
                 LOG.warn("Using {} MapDB store file. Path = {}.", fileNewlyCreated ? "fresh" : "existing", m_storePath);
             } catch (IOException ex) {
-                LOG.error("Unable to open MapDB store file. Path = {}, cause = {}, errorMessage = {}.", m_storePath, ex.getCause(), ex.getMessage());
-                throw new MQTTException("Can't create temp file for subscriptions storage [" + m_storePath + "]", ex);
+                LOG.error(
+                        "Unable to open MapDB store file. Path = {}, cause = {}, errorMessage = {}.",
+                        m_storePath,
+                        ex.getCause(),
+                        ex.getMessage());
+                throw new RuntimeException(
+                        "Can't create temp file for subscriptions storage [" + m_storePath + "]",
+                        ex);
             }
             m_db = DBMaker.newFileDB(tmpFile).make();
         }
         LOG.info("Scheduling MapDB commit task...");
         m_scheduler.scheduleWithFixedDelay(new Runnable() {
+
             @Override
             public void run() {
                 LOG.debug("Committing to MapDB...");
@@ -107,7 +116,7 @@ public class MapDBPersistentStore {
             }
         }, this.m_autosaveInterval, this.m_autosaveInterval, TimeUnit.SECONDS);
 
-        //TODO check m_db is valid and
+        // TODO check m_db is valid and
         m_messageStore = new MapDBMessagesStore(m_db);
         m_messageStore.initStore();
 
@@ -115,6 +124,7 @@ public class MapDBPersistentStore {
         m_sessionsStore.initStore();
     }
 
+    @Override
     public void close() {
         if (this.m_db.isClosed()) {
             LOG.warn("The MapDB store is already closed. Nothing will be done.");
@@ -128,7 +138,8 @@ public class MapDBPersistentStore {
         this.m_scheduler.shutdown();
         try {
             m_scheduler.awaitTermination(10L, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+        }
         if (!m_scheduler.isTerminated()) {
             LOG.warn("Forcing shutdown of MapDB commit tasks...");
             m_scheduler.shutdown();

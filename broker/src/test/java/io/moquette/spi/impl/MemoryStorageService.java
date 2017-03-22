@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
+ * Copyright (c) 2012-2017 The original author or authors
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,33 +13,37 @@
  *
  * You may elect to redistribute this code under either of these licenses.
  */
+
 package io.moquette.spi.impl;
 
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.ISessionsStore;
-import io.moquette.spi.MessageGUID;
+import io.moquette.spi.IStore;
 import io.moquette.spi.persistence.MemorySessionStore;
 
-import java.util.HashMap;
-import java.util.Map;
+public class MemoryStorageService implements IStore {
 
-public class MemoryStorageService {
-    
     private MemorySessionStore m_sessionsStore;
     private MemoryMessagesStore m_messagesStore;
-    
-    public void initStore() {
-        Map<String, Map<Integer, MessageGUID>> messageToGuids = new HashMap<>();
-        m_messagesStore = new MemoryMessagesStore(messageToGuids);
-        m_sessionsStore = new MemorySessionStore(m_messagesStore, messageToGuids);
+
+    public MemoryStorageService() {
+        m_messagesStore = new MemoryMessagesStore();
+        m_sessionsStore = new MemorySessionStore(m_messagesStore);
+        m_messagesStore.initStore();
+        m_sessionsStore.initStore();
     }
 
+    @Override
     public IMessagesStore messagesStore() {
         return m_messagesStore;
     }
 
+    @Override
     public ISessionsStore sessionsStore() {
         return m_sessionsStore;
     }
 
+    @Override
+    public void close() {
+    }
 }

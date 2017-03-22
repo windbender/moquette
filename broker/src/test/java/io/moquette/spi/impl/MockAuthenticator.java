@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
+ * Copyright (c) 2012-2017 The original author or authors
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,24 +13,24 @@
  *
  * You may elect to redistribute this code under either of these licenses.
  */
+
 package io.moquette.spi.impl;
 
 import java.util.Map;
 import java.util.Set;
-
 import io.moquette.spi.security.IAuthenticator;
 
 /**
  * Test utility to implements authenticator instance.
- * 
+ *
  * @author andrea
  */
 class MockAuthenticator implements IAuthenticator {
 
     private Set<String> m_clientIds;
-    private Map<String, byte[]> m_userPwds;
-    
-    MockAuthenticator(Set<String> clientIds, Map<String, byte[]> userPwds) {
+    private Map<String, String> m_userPwds;
+
+    MockAuthenticator(Set<String> clientIds, Map<String, String> userPwds) {
         m_clientIds = clientIds;
         m_userPwds = userPwds;
     }
@@ -42,7 +42,10 @@ class MockAuthenticator implements IAuthenticator {
         if (!m_userPwds.containsKey(username)) {
             return false;
         }
-        return m_userPwds.get(username).equals(password);
+        if (password == null) {
+            return false;
+        }
+        return m_userPwds.get(username).equals(new String(password));
     }
-    
+
 }

@@ -1,12 +1,14 @@
+
 package io.moquette.interception.messages;
 
-import io.moquette.parser.proto.messages.AbstractMessage;
 import io.moquette.spi.impl.subscriptions.Subscription;
+import io.netty.handler.codec.mqtt.MqttQoS;
 
 /**
  * @author Wagner Macedo
  */
 public class InterceptSubscribeMessage implements InterceptMessage {
+
     private final Subscription subscription;
     private final String username;
 
@@ -19,15 +21,15 @@ public class InterceptSubscribeMessage implements InterceptMessage {
         return subscription.getClientId();
     }
 
-    public AbstractMessage.QOSType getRequestedQos() {
+    public MqttQoS getRequestedQos() {
         return subscription.getRequestedQos();
     }
 
     public String getTopicFilter() {
-        return subscription.getTopicFilter();
+        return subscription.getTopicFilter().toString();
     }
 
-	public String getUsername() {
-		return username;
-	}
+    public String getUsername() {
+        return username;
+    }
 }

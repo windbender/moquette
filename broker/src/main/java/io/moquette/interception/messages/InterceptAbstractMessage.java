@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
+ * Copyright (c) 2012-2017 The original author or authors
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,29 +13,32 @@
  *
  * You may elect to redistribute this code under either of these licenses.
  */
+
 package io.moquette.interception.messages;
 
-import io.moquette.parser.proto.messages.AbstractMessage;
+import io.netty.handler.codec.mqtt.MqttMessage;
+import io.netty.handler.codec.mqtt.MqttQoS;
 
 /**
  * @author Wagner Macedo
  */
 public abstract class InterceptAbstractMessage implements InterceptMessage {
-    private final AbstractMessage msg;
 
-    InterceptAbstractMessage(AbstractMessage msg) {
+    private final MqttMessage msg;
+
+    InterceptAbstractMessage(MqttMessage msg) {
         this.msg = msg;
     }
 
     public boolean isRetainFlag() {
-        return msg.isRetainFlag();
+        return msg.fixedHeader().isRetain();
     }
 
     public boolean isDupFlag() {
-        return msg.isDupFlag();
+        return msg.fixedHeader().isDup();
     }
 
-    public AbstractMessage.QOSType getQos() {
-        return msg.getQos();
+    public MqttQoS getQos() {
+        return msg.fixedHeader().qosLevel();
     }
 }

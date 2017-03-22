@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
+ * Copyright (c) 2012-2017 The original author or authors
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  *
  * You may elect to redistribute this code under either of these licenses.
  */
+
 package io.moquette.spi.persistence;
 
 import io.moquette.BrokerConstants;
@@ -23,17 +24,16 @@ import io.moquette.spi.ClientSession;
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.ISessionsStore;
 import io.moquette.spi.ISessionsStore.ClientTopicCouple;
-import io.moquette.parser.proto.messages.AbstractMessage;
 import io.moquette.spi.MessageGUID;
 import io.moquette.spi.impl.subscriptions.Subscription;
+import io.moquette.spi.impl.subscriptions.Topic;
+import io.netty.handler.codec.mqtt.MqttQoS;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
 import static org.junit.Assert.*;
 
 /**
@@ -73,14 +73,17 @@ public class MapDBPersistentStoreTest {
         ClientSession session1 = m_sessionsStore.createNewSession("SESSION_ID_1", true);
 
         // Subscribe on /topic with QOSType.MOST_ONE
-        Subscription oldSubscription = new Subscription(session1.clientID, "/topic", AbstractMessage.QOSType.MOST_ONE);
+        Subscription oldSubscription = new Subscription(session1.clientID, new Topic("/topic"), MqttQoS.AT_MOST_ONCE);
         session1.subscribe(oldSubscription);
 
         // Subscribe on /topic again that overrides the previous subscription.
-        Subscription overridingSubscription = new Subscription(session1.clientID, "/topic", AbstractMessage.QOSType.EXACTLY_ONCE);
+        Subscription overridingSubscription = new Subscription(
+                session1.clientID,
+                new Topic("/topic"),
+                MqttQoS.EXACTLY_ONCE);
         session1.subscribe(overridingSubscription);
 
-        //Verify
+        // Verify
         List<ClientTopicCouple> subscriptions = m_sessionsStore.listAllSubscriptions();
         assertEquals(1, subscriptions.size());
         Subscription sub = m_sessionsStore.getSubscription(subscriptions.get(0));
@@ -95,27 +98,28 @@ public class MapDBPersistentStoreTest {
 
     @Test
     public void testNextPacketID_existingClientSession() {
-        //Force creation of inflight map for the CLIENT session
+        // Force creation of inflight map for the CLIENT session
         int packetId = m_sessionsStore.nextPacketID("CLIENT");
         assertEquals(1, packetId);
 
-        //request a second packetID
+        // request a second packetID
         packetId = m_sessionsStore.nextPacketID("CLIENT");
         assertEquals(2, packetId);
     }
 
     @Test
     public void testNextPacketID() {
-        //request a first ID
+        // request a first ID
 
         int packetId = m_sessionsStore.nextPacketID("CLIENT");
-        m_sessionsStore.inFlight("CLIENT", packetId, new MessageGUID("ABCDE")); //simulate an inflight
+        m_sessionsStore.inFlight("CLIENT", packetId, new MessageGUID("ABCDE")); // simulate an
+                                                                                // inflight
         assertEquals(1, packetId);
 
-        //release the ID
+        // release the ID
         m_sessionsStore.inFlightAck("CLIENT", packetId);
 
-        //request a second packetID, counter restarts from 0
+        // request a second packetID, counter restarts from 0
         packetId = m_sessionsStore.nextPacketID("CLIENT");
         assertEquals(1, packetId);
     }
@@ -124,8 +128,9 @@ public class MapDBPersistentStoreTest {
     public void testCloseShutdownCommitTask() throws InterruptedException {
         m_storageService.close();
 
-        //verify the executor is shutdown
-        assertTrue("Storage service scheduler can't be stopped in 3 seconds",
+        // verify the executor is shutdown
+        assertTrue(
+                "Storage service scheduler can't be stopped in 3 seconds",
                 m_storageService.m_scheduler.awaitTermination(3, TimeUnit.SECONDS));
         assertTrue(m_storageService.m_scheduler.isTerminated());
     }
@@ -133,17 +138,19 @@ public class MapDBPersistentStoreTest {
     @Test
     public void testDropMessagesInSessionCleanAllNotRetainedStoredMessages() {
         m_sessionsStore.createNewSession("TestClient", true);
-        IMessagesStore.StoredMessage publishToStore = new IMessagesStore.StoredMessage("Hello".getBytes(),
-                AbstractMessage.QOSType.EXACTLY_ONCE, "/topic");
+        IMessagesStore.StoredMessage publishToStore = new IMessagesStore.StoredMessage(
+                "Hello".getBytes(),
+                MqttQoS.EXACTLY_ONCE,
+                "/topic");
         publishToStore.setClientID(TEST_CLIENT);
         publishToStore.setMessageID(1);
         publishToStore.setRetained(false);
         MessageGUID guid = m_messagesStore.storePublishForFuture(publishToStore);
 
-        //Exercise
+        // Exercise
         m_messagesStore.dropMessagesInSession("TestClient");
 
-        //Verify the message store for session is empty.
+        // Verify the message store for session is empty.
         IMessagesStore.StoredMessage storedPublish = m_messagesStore.getMessageByGuid(guid);
         assertNull("The stored message must'n be present anymore", storedPublish);
     }
@@ -151,17 +158,19 @@ public class MapDBPersistentStoreTest {
     @Test
     public void testDropMessagesInSessionDoesntCleanAnyRetainedStoredMessages() {
         m_sessionsStore.createNewSession("TestClient", true);
-        IMessagesStore.StoredMessage publishToStore = new IMessagesStore.StoredMessage("Hello".getBytes(),
-                AbstractMessage.QOSType.EXACTLY_ONCE, "/topic");
+        IMessagesStore.StoredMessage publishToStore = new IMessagesStore.StoredMessage(
+                "Hello".getBytes(),
+                MqttQoS.EXACTLY_ONCE,
+                "/topic");
         publishToStore.setClientID(TEST_CLIENT);
         publishToStore.setMessageID(1);
         publishToStore.setRetained(true);
         MessageGUID guid = m_messagesStore.storePublishForFuture(publishToStore);
 
-        //Exercise
+        // Exercise
         m_messagesStore.dropMessagesInSession("TestClient");
 
-        //Verify the message store for session is empty.
+        // Verify the message store for session is empty.
         IMessagesStore.StoredMessage storedPublish = m_messagesStore.getMessageByGuid(guid);
         assertNotNull("The stored retained message must be present after client's session drop", storedPublish);
     }

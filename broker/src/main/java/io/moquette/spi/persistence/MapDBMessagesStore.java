@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The original author or authorsgetRockQuestions()
+ * Copyright (c) 2012-2017 The original author or authors
  * ------------------------------------------------------
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,15 +13,16 @@
  *
  * You may elect to redistribute this code under either of these licenses.
  */
+
 package io.moquette.spi.persistence;
 
 import io.moquette.spi.IMatchingCondition;
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.MessageGUID;
+import io.moquette.spi.impl.subscriptions.Topic;
 import org.mapdb.DB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
@@ -36,11 +37,10 @@ class MapDBMessagesStore implements IMessagesStore {
 
     private DB m_db;
 
-    //maps clientID -> guid
-    private ConcurrentMap<String, MessageGUID> m_retainedStore;
-    //maps guid to message, it's message store
+    // maps clientID -> guid
+    private ConcurrentMap<Topic, MessageGUID> m_retainedStore;
+    // maps guid to message, it's message store
     private ConcurrentMap<MessageGUID, IMessagesStore.StoredMessage> m_persistentMessageStore;
-
 
     MapDBMessagesStore(DB db) {
         m_db = db;
@@ -54,7 +54,7 @@ class MapDBMessagesStore implements IMessagesStore {
     }
 
     @Override
-    public void storeRetained(String topic, MessageGUID guid) {
+    public void storeRetained(Topic topic, MessageGUID guid) {
         LOG.debug("Storing retained messages. Topic = {}, guid = {}.", topic, guid);
         m_retainedStore.put(topic, guid);
     }
@@ -63,7 +63,7 @@ class MapDBMessagesStore implements IMessagesStore {
     public Collection<StoredMessage> searchMatching(IMatchingCondition condition) {
         LOG.debug("Scanning retained messages...");
         List<StoredMessage> results = new ArrayList<>();
-        for (Map.Entry<String, MessageGUID> entry : m_retainedStore.entrySet()) {
+        for (Map.Entry<Topic, MessageGUID> entry : m_retainedStore.entrySet()) {
             final MessageGUID guid = entry.getValue();
             StoredMessage storedMsg = m_persistentMessageStore.get(guid);
             if (condition.match(entry.getKey())) {
@@ -83,10 +83,15 @@ class MapDBMessagesStore implements IMessagesStore {
         assert storedMessage.getClientID() != null : "The message to be persisted must have a valid client ID";
         MessageGUID guid = new MessageGUID(UUID.randomUUID().toString());
         storedMessage.setGuid(guid);
-        LOG.debug("Storing publish event. MqttClientId = {}, messageId = {}, guid = {}, topic = {}.",
-                storedMessage.getClientID(), storedMessage.getMessageID(), guid, storedMessage.getTopic());
+        LOG.debug(
+                "Storing publish event. MqttClientId = {}, messageId = {}, guid = {}, topic = {}.",
+                storedMessage.getClientID(),
+                storedMessage.getMessageID(),
+                guid,
+                storedMessage.getTopic());
         m_persistentMessageStore.put(guid, storedMessage);
-        ConcurrentMap<Integer, MessageGUID> messageIdToGuid = m_db.getHashMap(MapDBSessionsStore.messageId2GuidsMapName(storedMessage.getClientID()));
+        ConcurrentMap<Integer, MessageGUID> messageIdToGuid = m_db
+                .getHashMap(messageId2GuidsMapName(storedMessage.getClientID()));
         messageIdToGuid.put(storedMessage.getMessageID(), guid);
         return guid;
     }
@@ -108,19 +113,23 @@ class MapDBMessagesStore implements IMessagesStore {
     @Override
     public void dropMessagesInSession(String clientID) {
         LOG.debug("Dropping stored messages. ClientId = {}.", clientID);
-        ConcurrentMap<Integer, MessageGUID> messageIdToGuid = m_db.getHashMap(MapDBSessionsStore.messageId2GuidsMapName(clientID));
+        ConcurrentMap<Integer, MessageGUID> messageIdToGuid = m_db.getHashMap(messageId2GuidsMapName(clientID));
         for (MessageGUID guid : messageIdToGuid.values()) {
-            removeStoredMessageIfNotRetainAndRefZero(guid);
+            removeStoredMessage(guid);
         }
         messageIdToGuid.clear();
     }
 
-    void removeStoredMessageIfNotRetainAndRefZero(MessageGUID guid) {
-        //remove only the not retained and no more referenced
+    void removeStoredMessage(MessageGUID guid) {
+        // remove only the not retained and no more referenced
         StoredMessage storedMessage = m_persistentMessageStore.get(guid);
         if (!storedMessage.isRetained()) {
-            LOG.debug("Dropping stored message. ClientId = {}, messageId = {}, guid = {}, topic = {}.",
-                    storedMessage.getClientID(), storedMessage.getMessageID(), guid, storedMessage.getTopic());
+            LOG.debug(
+                    "Dropping stored message. ClientId = {}, messageId = {}, guid = {}, topic = {}.",
+                    storedMessage.getClientID(),
+                    storedMessage.getMessageID(),
+                    guid,
+                    storedMessage.getTopic());
             m_persistentMessageStore.remove(guid);
         }
     }
@@ -132,7 +141,7 @@ class MapDBMessagesStore implements IMessagesStore {
     }
 
     @Override
-    public void cleanRetained(String topic) {
+    public void cleanRetained(Topic topic) {
         LOG.debug("Cleaning retained messages. Topic = {}.", topic);
         m_retainedStore.remove(topic);
     }
@@ -140,7 +149,20 @@ class MapDBMessagesStore implements IMessagesStore {
     @Override
     public int getPendingPublishMessages(String clientID) {
         ConcurrentMap<Integer, MessageGUID> messageIdToGuidMap = m_db
-                .getHashMap(MapDBSessionsStore.messageId2GuidsMapName(clientID));
+                .getHashMap(messageId2GuidsMapName(clientID));
         return messageIdToGuidMap.size();
+    }
+
+    @Override
+    public MessageGUID mapToGuid(String clientID, int messageID) {
+        LOG.debug("Mapping message ID to GUID CId={}, messageId={}", clientID, messageID);
+        ConcurrentMap<Integer, MessageGUID> messageIdToGuid = m_db.getHashMap(messageId2GuidsMapName(clientID));
+        MessageGUID result = messageIdToGuid.get(messageID);
+        LOG.debug("Message ID has been mapped to a GUID CId={}, messageId={}, guid={}", clientID, messageID, result);
+        return result;
+    }
+
+    static String messageId2GuidsMapName(String clientID) {
+        return "guidsMapping_" + clientID;
     }
 }
