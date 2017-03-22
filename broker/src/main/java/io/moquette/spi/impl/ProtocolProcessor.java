@@ -530,7 +530,7 @@ public class ProtocolProcessor {
         if (!msg.isRetainFlag()) {
             return;
         }
-        if (qos == AbstractMessage.QOSType.MOST_ONE || !msg.getPayload().hasRemaining()) {
+        if ( !msg.getPayload().hasRemaining()) {
             //QoS == 0 && retain => clean old retained
             m_messagesStore.cleanRetained(topic);
             return;
@@ -848,11 +848,11 @@ public class ProtocolProcessor {
                 AbstractMessage.QOSType qos = null;
                 if (SubscriptionsStore.validate(req.topicFilter)) {
 					qos = AbstractMessage.QOSType.valueOf(req.qos);
-					LOG.info("The client will be subscribed to the topic. MqttClientId = {}, username = {}, messageId = {}, topic = {}.",
-							clientID, username, msg.getMessageID(), req.topicFilter);
+					LOG.info("The client will be subscribed to the topic. MqttClientId = {}, username = {}, messageId = {}, qos = {}, retain = {},topic = {}.",
+							clientID, username, msg.getMessageID(), req.qos, req.topicFilter);
                 } else {
-					LOG.error("The topic filter is not valid. MqttClientId = {}, username = {}, messageId = {}, topic = {}.",
-							clientID, username, msg.getMessageID(), req.topicFilter);
+					LOG.error("The topic filter is not valid. MqttClientId = {}, username = {}, messageId = {}, qos = {}, topic = {}.",
+							clientID, username, msg.getMessageID(), req.qos, req.topicFilter);
 					qos = AbstractMessage.QOSType.FAILURE;
                 }
                 ackTopics.add(new SubscribeMessage.Couple(qos.byteValue(), req.topicFilter));
