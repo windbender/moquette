@@ -3,6 +3,7 @@ package io.moquette.spi.impl;
 
 import io.moquette.server.netty.NettyUtils;
 import io.moquette.spi.IMessagesStore;
+import io.moquette.spi.MessageGUID;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.SubscriptionsStore;
 import io.moquette.spi.impl.subscriptions.Topic;
@@ -67,8 +68,13 @@ class Qos0PublishHandler extends QosPublishHandler {
         this.publisher.publish2Subscribers(toStoreMsg, topicMatchingSubscriptions);
 
         if (msg.fixedHeader().isRetain()) {
-            // QoS == 0 && retain => clean old retained
-            m_messagesStore.cleanRetained(topic);
+            if (!msg.payload().isReadable()) {
+                m_messagesStore.cleanRetained(topic);
+            } else {
+                // before wasn't stored
+                MessageGUID guid = m_messagesStore.storePublishForFuture(toStoreMsg);
+                m_messagesStore.storeRetained(topic, guid);
+            }
         }
 
         String username = NettyUtils.userName(channel);
