@@ -473,7 +473,7 @@ public class ProtocolProcessorTest {
 
         // Exercise
         MqttPublishMessage cleanPubMsg = MessageBuilder.publish().topicName(FAKE_TOPIC).qos(MqttQoS.AT_MOST_ONCE)
-                .payload("Hello".getBytes()).retained(true).build();
+                .payload(new byte[0]).retained(true).build();
 
         m_processor.processPublish(m_channel, cleanPubMsg);
 
