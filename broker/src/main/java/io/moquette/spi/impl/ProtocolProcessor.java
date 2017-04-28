@@ -481,14 +481,12 @@ public class ProtocolProcessor {
             LOG.error("no inflight message found for client:"+clientID+" session:"+targetSession+" message:"+messageID+" therefore cannot not notify message ack");
         } else {
             String topic = inflightMsg.getTopic();
-            m_interceptor.notifyMessageAcknowledged(new InterceptAcknowledgedMessage(inflightMsg, topic, username));
+            m_interceptor.notifyMessageAcknowledged(new InterceptAcknowledgedMessage(inflightMsg, topic, username,messageID));
         }
 
         String topic = inflightMsg.getTopic();
         recordReceivedMessageTime(channel);
 
-        m_interceptor
-                .notifyMessageAcknowledged(new InterceptAcknowledgedMessage(inflightMsg, topic, username, messageID));
     }
 
     public static IMessagesStore.StoredMessage asStoredMessage(MqttPublishMessage msg) {
