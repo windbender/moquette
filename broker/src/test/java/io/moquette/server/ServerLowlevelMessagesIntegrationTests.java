@@ -32,10 +32,6 @@ import java.util.Properties;
 import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.*;
 import static org.junit.Assert.*;
 
-/**
- *
- * @author andrea
- */
 public class ServerLowlevelMessagesIntegrationTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerLowlevelMessagesIntegrationTests.class);
@@ -70,7 +66,6 @@ public class ServerLowlevelMessagesIntegrationTests {
         Thread.sleep(300); // to let the close event pass before server stop event
         m_server.stopServer();
         LOG.debug("After asked server to stop");
-        IntegrationUtils.cleanPersistenceFile(m_config);
     }
 
     @Test
@@ -93,22 +88,11 @@ public class ServerLowlevelMessagesIntegrationTests {
     }
 
     private static MqttConnectMessage createConnectMessage(String clientID, int keepAlive) {
-        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(
-                MqttMessageType.CONNECT,
-                false,
-                MqttQoS.AT_MOST_ONCE,
-                false,
-                0);
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.CONNECT, false, MqttQoS.AT_MOST_ONCE,
+            false, 0);
         MqttConnectVariableHeader mqttConnectVariableHeader = new MqttConnectVariableHeader(
-                MqttVersion.MQTT_3_1.protocolName(),
-                MqttVersion.MQTT_3_1.protocolLevel(),
-                false,
-                false,
-                false,
-                1,
-                false,
-                true,
-                keepAlive);
+            MqttVersion.MQTT_3_1.protocolName(), MqttVersion.MQTT_3_1.protocolLevel(), false, false, false, 1, false,
+            true, keepAlive);
         MqttConnectPayload mqttConnectPayload = new MqttConnectPayload(clientID, null, null, null, null);
         return new MqttConnectMessage(mqttFixedHeader, mqttConnectVariableHeader, mqttConnectPayload);
     }

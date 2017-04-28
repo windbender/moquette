@@ -20,9 +20,9 @@ import io.moquette.BrokerConstants;
 import io.moquette.server.config.IConfig;
 import io.moquette.server.config.MemoryConfig;
 import io.moquette.spi.impl.subscriptions.Topic;
-import io.moquette.spi.impl.MemoryMessagesStore;
-import io.moquette.spi.impl.MemoryStorageService;
-import io.moquette.spi.persistence.MemorySessionStore;
+import io.moquette.persistence.MemoryMessagesStore;
+import io.moquette.persistence.MemoryStorageService;
+import io.moquette.persistence.MemorySessionStore;
 import io.moquette.spi.security.IAuthenticator;
 import io.moquette.spi.security.IAuthorizator;
 import org.junit.After;
@@ -31,10 +31,6 @@ import java.io.IOException;
 import java.util.Properties;
 import static org.junit.Assert.*;
 
-/**
- *
- * @author luca <luca.capra@create-net.org>
- */
 public class ConfigurationClassLoaderTest implements IAuthenticator, IAuthorizator {
 
     Server m_server;

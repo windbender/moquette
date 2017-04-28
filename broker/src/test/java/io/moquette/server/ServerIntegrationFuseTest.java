@@ -29,10 +29,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
-/**
- *
- * @author andrea
- */
 public class ServerIntegrationFuseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerIntegrationPahoTest.class);
@@ -69,7 +65,6 @@ public class ServerIntegrationFuseTest {
         }
 
         m_server.stopServer();
-        IntegrationUtils.cleanPersistenceFile(m_config);
     }
 
     @Test

@@ -33,9 +33,6 @@ import java.util.Date;
 /**
  * Value object to maintain the information of single connection, like ClientID, Channel, and clean
  * session flag.
- *
- *
- * @author andrea
  */
 public class ConnectionDescriptor {
 

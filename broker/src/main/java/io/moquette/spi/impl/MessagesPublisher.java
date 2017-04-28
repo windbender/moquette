@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2012-2017 The original author or authors
+ * ------------------------------------------------------
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Apache License v2.0 which accompanies this distribution.
+ *
+ * The Eclipse Public License is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * The Apache License v2.0 is available at
+ * http://www.opensource.org/licenses/apache2.0.php
+ *
+ * You may elect to redistribute this code under either of these licenses.
+ */
 
 package io.moquette.spi.impl;
 
@@ -22,7 +37,7 @@ class MessagesPublisher {
     private final IMessagesStore m_messagesStore;
     private final PersistentQueueMessageSender messageSender;
 
-    public MessagesPublisher(ConnectionDescriptorStore connectionDescriptors, ISessionsStore sessionsStore,
+    MessagesPublisher(ConnectionDescriptorStore connectionDescriptors, ISessionsStore sessionsStore,
             IMessagesStore messagesStore, PersistentQueueMessageSender messageSender) {
         this.connectionDescriptors = connectionDescriptors;
         this.m_sessionsStore = sessionsStore;
@@ -63,29 +78,20 @@ class MessagesPublisher {
             // refCnt = 0
             ByteBuf message = origMessage.retainedDuplicate();
             if (targetIsActive) {
-                LOG.debug(
-                        "Sending PUBLISH message to active subscriber. MessageId={}, CId={}, topicFilter={}, qos={}",
-                        pubMsg.getMessageID(),
-                        sub.getClientId(),
-                        sub.getTopicFilter(),
-                        qos);
+                LOG.debug("Sending PUBLISH message to active subscriber. CId={}, topicFilter={}, qos={}",
+                    sub.getClientId(), sub.getTopicFilter(), qos);
                 MqttPublishMessage publishMsg = notRetainedPublish(topic, qos, message);
                 if (qos != MqttQoS.AT_MOST_ONCE) {
                     // QoS 1 or 2
-                    int messageId = targetSession.nextPacketId();
-                    targetSession.inFlightAckWaiting(guid, messageId);
+                    int messageId = targetSession.inFlightAckWaiting(guid);
                     // set the PacketIdentifier only for QoS > 0
                     publishMsg = notRetainedPublishWithMessageId(topic, qos, message, messageId);
                 }
                 this.messageSender.sendPublish(targetSession, publishMsg);
             } else {
                 if (!targetSession.isCleanSession()) {
-                    LOG.debug(
-                            "Storing pending PUBLISH inactive message. MessageId={}, CId={}, topicFilter={}, qos={}",
-                            pubMsg.getMessageID(),
-                            sub.getClientId(),
-                            sub.getTopicFilter(),
-                            qos);
+                    LOG.debug("Storing pending PUBLISH inactive message. CId={}, topicFilter={}, qos={}",
+                        sub.getClientId(), sub.getTopicFilter(), qos);
                     // store the message in targetSession queue to deliver
                     targetSession.enqueue(pubMsg);
                 }

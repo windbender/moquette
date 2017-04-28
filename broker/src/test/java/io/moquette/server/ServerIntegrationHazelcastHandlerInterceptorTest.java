@@ -1,7 +1,21 @@
+/*
+ * Copyright (c) 2012-2017 The original author or authors
+ * ------------------------------------------------------
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Apache License v2.0 which accompanies this distribution.
+ *
+ * The Eclipse Public License is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * The Apache License v2.0 is available at
+ * http://www.opensource.org/licenses/apache2.0.php
+ *
+ * You may elect to redistribute this code under either of these licenses.
+ */
 
 package io.moquette.server;
 
-import io.moquette.BrokerConstants;
 import io.moquette.interception.HazelcastInterceptHandler;
 import io.moquette.server.config.IConfig;
 import io.moquette.server.config.MemoryConfig;
@@ -13,11 +27,14 @@ import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.util.Properties;
+
+import static io.moquette.BrokerConstants.*;
 import static org.junit.Assert.assertEquals;
 
 public class ServerIntegrationHazelcastHandlerInterceptorTest {
@@ -44,7 +61,7 @@ public class ServerIntegrationHazelcastHandlerInterceptorTest {
 
     protected Server startServer(int port, IConfig m_config) throws IOException {
         Server m_server = new Server();
-        m_config.setProperty(BrokerConstants.PORT_PROPERTY_NAME, Integer.toString(port));
+        m_config.setProperty(PORT_PROPERTY_NAME, Integer.toString(port));
         m_server.startServer(m_config);
         return m_server;
     }
@@ -54,19 +71,14 @@ public class ServerIntegrationHazelcastHandlerInterceptorTest {
     }
 
     private Properties addHazelCastConf(Properties properties, int port, String hazelcastConfigurationFile) {
-        properties.put(BrokerConstants.PORT_PROPERTY_NAME, port);
-        properties.put(
-                BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME,
-                HazelcastInterceptHandler.class.getCanonicalName());
-        properties.put(BrokerConstants.HAZELCAST_CONFIGURATION, hazelcastConfigurationFile);
+        properties.put(PORT_PROPERTY_NAME, port);
+        properties.put(INTERCEPT_HANDLER_PROPERTY_NAME, HazelcastInterceptHandler.class.getCanonicalName());
+        properties.put(HAZELCAST_CONFIGURATION, hazelcastConfigurationFile);
         return properties;
     }
 
     @Before
     public void setUp() throws Exception {
-        String dbPath = IntegrationUtils.localMapDBPath();
-        IntegrationUtils.cleanPersistenceFile(dbPath);
-
         final Properties configProps = addHazelCastConf(
                 IntegrationUtils.prepareTestClusterProperties(1883),
                 1883,
@@ -114,14 +126,22 @@ public class ServerIntegrationHazelcastHandlerInterceptorTest {
         MqttMessage messageQos0 = m_messagesCollector.waitMessage(1);
         assertEquals("Hello world MQTT QoS0", messageQos0.toString());
         assertEquals(0, messageQos0.getQos());
+    }
 
+    @Test
+    public void checkPublishPassThroughCluster_Qos1() throws Exception {
+        LOG.info("*** checkPublishPassThroughCluster_Qos1 ***");
         m_listener.subscribe("/topic", 1);
 
         m_publisher.publish("/topic", "Hello world MQTT QoS1".getBytes(), 1, false);
         MqttMessage messageQos1 = m_messagesCollector.waitMessage(1);
         assertEquals("Hello world MQTT QoS1", messageQos1.toString());
         assertEquals(1, messageQos1.getQos());
+    }
 
+    @Test
+    public void checkPublishPassThroughCluster_Qos2() throws Exception {
+        LOG.info("*** checkPublishPassThroughCluster_Qos2 ***");
         m_listener.subscribe("/topic", 2);
 
         m_publisher.publish("/topic", "Hello world MQTT QoS2".getBytes(), 2, false);

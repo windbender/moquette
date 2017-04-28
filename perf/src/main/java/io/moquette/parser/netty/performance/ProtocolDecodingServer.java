@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2012-2017 The original author or authors
+ * ------------------------------------------------------
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Apache License v2.0 which accompanies this distribution.
+ *
+ * The Eclipse Public License is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * The Apache License v2.0 is available at
+ * http://www.opensource.org/licenses/apache2.0.php
+ *
+ * You may elect to redistribute this code under either of these licenses.
+ */
+
 package io.moquette.parser.netty.performance;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -28,7 +44,7 @@ public class ProtocolDecodingServer {
         public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
             if (evt instanceof IdleStateEvent) {
                 IdleState e = ((IdleStateEvent) evt).state();
-                if (e == IdleState.ALL_IDLE) {
+                if (e == IdleState.READER_IDLE) {
                     //fire a channelInactive to trigger publish of Will
                     ctx.fireChannelInactive();
                     ctx.close();
@@ -47,7 +63,7 @@ public class ProtocolDecodingServer {
     static final class SharedState {
         private volatile Channel subscriberCh;
         private volatile Channel publisherCh;
-        private volatile boolean forwardPublish = false;
+        private volatile boolean forwardPublish;
 
         public boolean isForwardable() {
             return forwardPublish;
@@ -68,6 +84,10 @@ public class ProtocolDecodingServer {
         public void setPublisherCh(Channel publisherCh) {
             this.publisherCh = publisherCh;
         }
+
+        public Channel getPublisherCh() {
+            return publisherCh;
+        }
     }
 
     final SharedState state = new SharedState();
@@ -86,7 +106,7 @@ public class ProtocolDecodingServer {
                     public void initChannel(SocketChannel ch) throws Exception {
                         ChannelPipeline pipeline = ch.pipeline();
                         try {
-                            pipeline.addFirst("idleStateHandler", new IdleStateHandler(0, 0, 2));
+                            pipeline.addFirst("idleStateHandler", new IdleStateHandler(2, 0, 0));
                             pipeline.addAfter("idleStateHandler", "idleEventHandler", new MoquetteIdleTimeoutHandler());
                             pipeline.addLast("decoder", new MqttDecoder());
                             pipeline.addLast("encoder", MqttEncoder.INSTANCE);
@@ -110,7 +130,6 @@ public class ProtocolDecodingServer {
             LOG.error(null, ex);
         }
     }
-
 
     public void stop() {
         if (m_workerGroup == null) {
@@ -149,9 +168,10 @@ public class ProtocolDecodingServer {
 
         String tmpDir = System.getProperty("java.io.tmpdir");
         MqttDefaultFilePersistence dataStore = new MqttDefaultFilePersistence(tmpDir);
-        MqttAsyncClient pub = new MqttAsyncClient("tcp://" + host +":1883", "PublisherClient"+dialog_id, dataStore);
+        MqttAsyncClient pub = new MqttAsyncClient("tcp://" + host + ":1883", "PublisherClient" + dialog_id, dataStore);
         MqttDefaultFilePersistence dataStoreSub = new MqttDefaultFilePersistence(tmpDir);
-        MqttAsyncClient sub = new MqttAsyncClient("tcp://" + host +":1883", "SubscriberClient"+dialog_id, dataStoreSub);
+        MqttAsyncClient sub = new MqttAsyncClient("tcp://" + host + ":1883", "SubscriberClient" + dialog_id,
+                dataStoreSub);
 
         BenchmarkSubscriber suscriberBench = new BenchmarkSubscriber(sub, dialog_id);
         suscriberBench.connect();

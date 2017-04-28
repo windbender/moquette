@@ -14,10 +14,9 @@
  * You may elect to redistribute this code under either of these licenses.
  */
 
-package io.moquette.spi.persistence;
+package io.moquette.persistence.mapdb;
 
 import io.moquette.BrokerConstants;
-import io.moquette.server.IntegrationUtils;
 import io.moquette.server.config.IConfig;
 import io.moquette.server.config.MemoryConfig;
 import io.moquette.spi.ClientSession;
@@ -27,13 +26,19 @@ import io.moquette.spi.ISessionsStore.ClientTopicCouple;
 import io.moquette.spi.MessageGUID;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.Topic;
-import io.netty.handler.codec.mqtt.MqttQoS;
+import static io.netty.handler.codec.mqtt.MqttQoS.*;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.File;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.*;
 
 /**
@@ -47,13 +52,17 @@ public class MapDBPersistentStoreTest {
     ISessionsStore m_sessionsStore;
     IMessagesStore m_messagesStore;
 
+    private ScheduledExecutorService scheduler;
+
     @Before
     public void setUp() throws Exception {
-        IntegrationUtils.cleanPersistenceFile(BrokerConstants.DEFAULT_PERSISTENT_PATH);
+        scheduler = Executors.newScheduledThreadPool(1);
+
+        cleanPersistenceFile(BrokerConstants.DEFAULT_PERSISTENT_PATH);
         Properties props = new Properties();
         props.setProperty(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME, BrokerConstants.DEFAULT_PERSISTENT_PATH);
         IConfig conf = new MemoryConfig(props);
-        m_storageService = new MapDBPersistentStore(conf);
+        m_storageService = new MapDBPersistentStore(conf, scheduler);
         m_storageService.initStore();
         m_messagesStore = m_storageService.messagesStore();
         m_sessionsStore = m_storageService.sessionsStore();
@@ -65,7 +74,18 @@ public class MapDBPersistentStoreTest {
             m_storageService.close();
         }
 
-        IntegrationUtils.cleanPersistenceFile(BrokerConstants.DEFAULT_PERSISTENT_PATH);
+        scheduler.shutdown();
+        cleanPersistenceFile(BrokerConstants.DEFAULT_PERSISTENT_PATH);
+    }
+
+    public static void cleanPersistenceFile(String fileName) {
+        File dbFile = new File(fileName);
+        if (dbFile.exists()) {
+            dbFile.delete();
+            new File(fileName + ".p").delete();
+            new File(fileName + ".t").delete();
+        }
+        assertFalse(dbFile.exists());
     }
 
     @Test
@@ -73,14 +93,11 @@ public class MapDBPersistentStoreTest {
         ClientSession session1 = m_sessionsStore.createNewSession("SESSION_ID_1", true);
 
         // Subscribe on /topic with QOSType.MOST_ONE
-        Subscription oldSubscription = new Subscription(session1.clientID, new Topic("/topic"), MqttQoS.AT_MOST_ONCE);
+        Subscription oldSubscription = new Subscription(session1.clientID, new Topic("/topic"), AT_MOST_ONCE);
         session1.subscribe(oldSubscription);
 
         // Subscribe on /topic again that overrides the previous subscription.
-        Subscription overridingSubscription = new Subscription(
-                session1.clientID,
-                new Topic("/topic"),
-                MqttQoS.EXACTLY_ONCE);
+        Subscription overridingSubscription = new Subscription(session1.clientID, new Topic("/topic"), EXACTLY_ONCE);
         session1.subscribe(overridingSubscription);
 
         // Verify
@@ -137,18 +154,15 @@ public class MapDBPersistentStoreTest {
 
     @Test
     public void testDropMessagesInSessionCleanAllNotRetainedStoredMessages() {
-        m_sessionsStore.createNewSession("TestClient", true);
-        IMessagesStore.StoredMessage publishToStore = new IMessagesStore.StoredMessage(
-                "Hello".getBytes(),
-                MqttQoS.EXACTLY_ONCE,
-                "/topic");
+        m_sessionsStore.createNewSession(TEST_CLIENT, true);
+        IMessagesStore.StoredMessage publishToStore = new IMessagesStore.StoredMessage("Hello".getBytes(), EXACTLY_ONCE,
+            "/topic");
         publishToStore.setClientID(TEST_CLIENT);
-        publishToStore.setMessageID(1);
         publishToStore.setRetained(false);
         MessageGUID guid = m_messagesStore.storePublishForFuture(publishToStore);
 
         // Exercise
-        m_messagesStore.dropMessagesInSession("TestClient");
+        m_messagesStore.dropInFlightMessagesInSession(singletonList(guid));
 
         // Verify the message store for session is empty.
         IMessagesStore.StoredMessage storedPublish = m_messagesStore.getMessageByGuid(guid);
@@ -157,18 +171,16 @@ public class MapDBPersistentStoreTest {
 
     @Test
     public void testDropMessagesInSessionDoesntCleanAnyRetainedStoredMessages() {
-        m_sessionsStore.createNewSession("TestClient", true);
-        IMessagesStore.StoredMessage publishToStore = new IMessagesStore.StoredMessage(
-                "Hello".getBytes(),
-                MqttQoS.EXACTLY_ONCE,
-                "/topic");
+        m_sessionsStore.createNewSession(TEST_CLIENT, true);
+        IMessagesStore.StoredMessage publishToStore = new IMessagesStore.StoredMessage("Hello".getBytes(), EXACTLY_ONCE,
+            "/topic");
         publishToStore.setClientID(TEST_CLIENT);
-        publishToStore.setMessageID(1);
         publishToStore.setRetained(true);
         MessageGUID guid = m_messagesStore.storePublishForFuture(publishToStore);
+        m_messagesStore.storeRetained(new Topic("/topic"), guid);
 
         // Exercise
-        m_messagesStore.dropMessagesInSession("TestClient");
+        m_messagesStore.dropInFlightMessagesInSession(singletonList(guid));
 
         // Verify the message store for session is empty.
         IMessagesStore.StoredMessage storedPublish = m_messagesStore.getMessageByGuid(guid);

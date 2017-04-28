@@ -1,10 +1,24 @@
+/*
+ * Copyright (c) 2012-2017 The original author or authors
+ * ------------------------------------------------------
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Apache License v2.0 which accompanies this distribution.
+ *
+ * The Eclipse Public License is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * The Apache License v2.0 is available at
+ * http://www.opensource.org/licenses/apache2.0.php
+ *
+ * You may elect to redistribute this code under either of these licenses.
+ */
 
 package io.moquette.spi.impl;
 
 import io.moquette.server.ConnectionDescriptorStore;
 import io.moquette.server.netty.NettyUtils;
 import io.moquette.spi.IMessagesStore;
-import io.moquette.spi.MessageGUID;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.SubscriptionsStore;
 import io.moquette.spi.impl.subscriptions.Topic;
@@ -31,9 +45,9 @@ class Qos1PublishHandler extends QosPublishHandler {
     private final ConnectionDescriptorStore connectionDescriptors;
     private final MessagesPublisher publisher;
 
-    public Qos1PublishHandler(IAuthorizator authorizator, SubscriptionsStore subscriptions,
-            IMessagesStore messagesStore, BrokerInterceptor interceptor,
-            ConnectionDescriptorStore connectionDescriptors, String brokerPort, MessagesPublisher messagesPublisher) {
+    Qos1PublishHandler(IAuthorizator authorizator, SubscriptionsStore subscriptions, IMessagesStore messagesStore,
+            BrokerInterceptor interceptor, ConnectionDescriptorStore connectionDescriptors, String brokerPort,
+            MessagesPublisher messagesPublisher) {
         super(authorizator);
         this.subscriptions = subscriptions;
         this.m_messagesStore = messagesStore;
@@ -57,37 +71,26 @@ class Qos1PublishHandler extends QosPublishHandler {
         toStoreMsg.setClientID(clientID);
 
         if (LOG.isTraceEnabled()) {
-            LOG.trace(
-                    "Sending publish message to subscribers. "
-                    + "MqttClientId = {}, topic = {}, messageId = {}, payload = {}, subscriptionTree = {}.",
-                    clientID,
-                    topic,
-                    messageID,
-                    DebugUtils.payload2Str(toStoreMsg.getMessage()),
-                    subscriptions.dumpTree());
+            LOG.trace("Sending publish message to subscribers. ClientId={}, topic={}, messageId={}, payload={}, " +
+                "subscriptionTree={}", clientID, topic, messageID, DebugUtils.payload2Str(toStoreMsg.getMessage()),
+                subscriptions.dumpTree());
         } else {
-            LOG.info(
-                    "Sending publish message to subscribers. MqttClientId = {}, topic = {}, messageId = {}.",
-                    clientID,
-                    topic,
-                    messageID);
+            LOG.info("Sending publish message to subscribers. ClientId={}, topic={}, messageId={}", clientID, topic,
+                messageID);
         }
 
         List<Subscription> topicMatchingSubscriptions = subscriptions.matches(topic);
         this.publisher.publish2Subscribers(toStoreMsg, topicMatchingSubscriptions);
 
-        // send PUBACK
-        // TODO Don't send PUBREC for Hz publish notification, if (msg.isLocal()) {
         sendPubAck(clientID, messageID);
-        // }
 
         if (msg.fixedHeader().isRetain()) {
             if (!msg.payload().isReadable()) {
                 m_messagesStore.cleanRetained(topic);
             } else {
                 // before wasn't stored
-                MessageGUID guid = m_messagesStore.storePublishForFuture(toStoreMsg);
-                m_messagesStore.storeRetained(topic, guid);
+                //MessageGUID guid = m_messagesStore.storePublishForFuture(toStoreMsg);
+                m_messagesStore.storeRetained(topic, toStoreMsg.getGuid());
             }
         }
 
@@ -102,17 +105,13 @@ class Qos1PublishHandler extends QosPublishHandler {
 
         try {
             if (connectionDescriptors == null) {
-                throw new RuntimeException(
-                        "Internal bad error, found connectionDescriptors to null while it should be initialized, "
-                        + "somewhere it's overwritten!!");
+                throw new RuntimeException("Internal bad error, found connectionDescriptors to null while it should " +
+                    "be initialized, somewhere it's overwritten!!");
             }
             LOG.debug("clientIDs are {}", connectionDescriptors);
             if (!connectionDescriptors.isConnected(clientId)) {
-                throw new RuntimeException(
-                        String.format(
-                                "Can't find a ConnectionDescriptor for client %s in cache %s",
-                                clientId,
-                                connectionDescriptors));
+                throw new RuntimeException(String.format("Can't find a ConnectionDescriptor for client %s in cache %s",
+                    clientId, connectionDescriptors));
             }
             connectionDescriptors.sendMessage(pubAckMessage, messageID, clientId);
         } catch (Throwable t) {

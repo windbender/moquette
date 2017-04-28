@@ -14,7 +14,7 @@
  * You may elect to redistribute this code under either of these licenses.
  */
 
-package io.moquette.spi.impl;
+package io.moquette.persistence;
 
 import io.moquette.spi.IMessagesStore;
 import io.moquette.spi.IMatchingCondition;
@@ -23,18 +23,13 @@ import io.moquette.spi.impl.subscriptions.Topic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.*;
-import static io.moquette.spi.impl.Utils.defaultGet;
 
-/**
- * @author andrea
- */
 public class MemoryMessagesStore implements IMessagesStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(MemoryMessagesStore.class);
 
     private Map<Topic, MessageGUID> m_retainedStore = new HashMap<>();
     private Map<MessageGUID, StoredMessage> m_persistentMessageStore = new HashMap<>();
-    private Map<String, Map<Integer, MessageGUID>> m_messageToGuids = new HashMap<>();
 
     MemoryMessagesStore() {
     }
@@ -71,21 +66,16 @@ public class MemoryMessagesStore implements IMessagesStore {
         MessageGUID guid = new MessageGUID(UUID.randomUUID().toString());
         storedMessage.setGuid(guid);
         m_persistentMessageStore.put(guid, storedMessage);
-        HashMap<Integer, MessageGUID> guids = (HashMap<Integer, MessageGUID>) defaultGet(
-                m_messageToGuids,
-                storedMessage.getClientID(),
-                new HashMap<Integer, MessageGUID>());
-        guids.put(storedMessage.getMessageID(), guid);
         return guid;
     }
 
     @Override
-    public void dropMessagesInSession(String clientID) {
-        Map<Integer, MessageGUID> messageGUIDMap = m_messageToGuids.get(clientID);
-        if (messageGUIDMap == null || messageGUIDMap.isEmpty()) {
-            return;
-        }
-        for (MessageGUID guid : messageGUIDMap.values()) {
+    public void dropInFlightMessagesInSession(Collection<MessageGUID> pendingAckMessages) {
+        //remove all guids from retained
+        Collection<MessageGUID> messagesToRemove = new HashSet<>(pendingAckMessages);
+        messagesToRemove.removeAll(m_retainedStore.values());
+
+        for (MessageGUID guid : messagesToRemove) {
             m_persistentMessageStore.remove(guid);
         }
     }
@@ -98,21 +88,5 @@ public class MemoryMessagesStore implements IMessagesStore {
     @Override
     public void cleanRetained(Topic topic) {
         m_retainedStore.remove(topic);
-    }
-
-    @Override
-    public int getPendingPublishMessages(String clientID) {
-        Map<Integer, MessageGUID> messageToGuids = m_messageToGuids.get(clientID);
-        if (messageToGuids == null)
-            return 0;
-        else
-            return messageToGuids.size();
-    }
-
-    @Override
-    public MessageGUID mapToGuid(String clientID, int messageID) {
-        HashMap<Integer, MessageGUID> guids = (HashMap<Integer, MessageGUID>) Utils
-                .defaultGet(m_messageToGuids, clientID, new HashMap<Integer, MessageGUID>());
-        return guids.get(messageID);
     }
 }

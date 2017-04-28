@@ -28,10 +28,6 @@ import java.net.SocketAddress;
 import java.io.IOException;
 import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
-/**
- *
- * @author andrea
- */
 @Sharable
 public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 
@@ -80,6 +76,9 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
                     break;
                 case PINGREQ:
                     m_processor.processPingReq(ctx,  msg);
+                    break;
+                default:
+                    LOG.error("Unkonwn MessageType:{}", messageType);
                     break;
             }
         } catch (Throwable ex) {

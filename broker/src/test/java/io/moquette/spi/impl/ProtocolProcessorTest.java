@@ -17,6 +17,7 @@
 package io.moquette.spi.impl;
 
 import io.moquette.interception.InterceptHandler;
+import io.moquette.persistence.MemoryStorageService;
 import io.moquette.server.netty.MessageBuilder;
 import io.moquette.server.netty.NettyUtils;
 import io.moquette.spi.IMatchingCondition;
@@ -39,10 +40,6 @@ import static io.moquette.spi.impl.ProtocolProcessor.lowerQosToTheSubscriptionDe
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-/**
- *
- * @author andrea
- */
 public class ProtocolProcessorTest {
 
     static final String FAKE_CLIENT_ID = "FAKE_123";
@@ -98,14 +95,8 @@ public class ProtocolProcessorTest {
         subscriptions = new SubscriptionsStore();
         subscriptions.init(memStorage.sessionsStore());
         m_processor = new ProtocolProcessor();
-        m_processor.init(
-                subscriptions,
-                m_messagesStore,
-                m_sessionStore,
-                m_mockAuthenticator,
-                true,
-                new PermitAllAuthorizator(),
-                NO_OBSERVERS_INTERCEPTOR);
+        m_processor.init(subscriptions, m_messagesStore, m_sessionStore, m_mockAuthenticator, true,
+            new PermitAllAuthorizator(), NO_OBSERVERS_INTERCEPTOR);
     }
 
     @Test
@@ -176,13 +167,7 @@ public class ProtocolProcessorTest {
         // simulate a connect that register a clientID to an IoSession
         MemoryStorageService storageService = new MemoryStorageService();
         subs.init(storageService.sessionsStore());
-        m_processor.init(
-                subs,
-                m_messagesStore,
-                m_sessionStore,
-                null,
-                true,
-                new PermitAllAuthorizator(),
+        m_processor.init(subs, m_messagesStore, m_sessionStore, null, true, new PermitAllAuthorizator(),
                 NO_OBSERVERS_INTERCEPTOR);
 
         EmbeddedChannel firstReceiverChannel = new EmbeddedChannel();
@@ -228,10 +213,8 @@ public class ProtocolProcessorTest {
 
         // Verify
         assertTrue(m_channel.readOutbound() instanceof MqttSubAckMessage);
-        Subscription expectedSubscription = new Subscription(
-                FAKE_CLIENT_ID,
-                new Topic(FAKE_TOPIC),
-                MqttQoS.AT_MOST_ONCE);
+        Subscription expectedSubscription = new Subscription(FAKE_CLIENT_ID, new Topic(FAKE_TOPIC),
+            MqttQoS.AT_MOST_ONCE);
         assertTrue(subscriptions.contains(expectedSubscription));
     }
 
@@ -244,13 +227,7 @@ public class ProtocolProcessorTest {
         when(mockAuthorizator.canRead(eq(new Topic(FAKE_TOPIC)), eq(fakeUserName), eq(FAKE_CLIENT_ID)))
             .thenReturn(false);
 
-        m_processor.init(
-                subscriptions,
-                m_messagesStore,
-                m_sessionStore,
-                m_mockAuthenticator,
-                true,
-                mockAuthorizator,
+        m_processor.init(subscriptions, m_messagesStore, m_sessionStore, m_mockAuthenticator, true, mockAuthorizator,
                 NO_OBSERVERS_INTERCEPTOR);
 
         // Exercise
@@ -282,16 +259,14 @@ public class ProtocolProcessorTest {
 
         m_processor.processSubscribe(m_channel, msg);
         assertEquals(1, subscriptions.size());
-                
+
         //Exercise
         m_processor.processSubscribe(m_channel, msg);
 
         // Verify
         assertEquals(1, subscriptions.size());
-        Subscription expectedSubscription = new Subscription(
-                FAKE_CLIENT_ID,
-                new Topic(FAKE_TOPIC),
-                MqttQoS.AT_MOST_ONCE);
+        Subscription expectedSubscription = new Subscription(FAKE_CLIENT_ID, new Topic(FAKE_TOPIC),
+            MqttQoS.AT_MOST_ONCE);
 
         assertTrue(subscriptions.contains(expectedSubscription));
     }
@@ -332,10 +307,8 @@ public class ProtocolProcessorTest {
     @Test
     public void testPublishOfRetainedMessage_afterNewSubscription() throws Exception {
         // simulate a connect that register a clientID to an IoSession
-        final Subscription subscription = new Subscription(
-                FAKE_PUBLISHER_ID,
-                new Topic(FAKE_TOPIC),
-                MqttQoS.AT_MOST_ONCE);
+        final Subscription subscription =
+                new Subscription(FAKE_PUBLISHER_ID, new Topic(FAKE_TOPIC), MqttQoS.AT_MOST_ONCE);
 
         // subscriptions.matches(topic) redefine the method to return true
         SubscriptionsStore subs = new SubscriptionsStore() {
@@ -353,13 +326,7 @@ public class ProtocolProcessorTest {
         subs.init(storageService.sessionsStore());
 
         // simulate a connect that register a clientID to an IoSession
-        m_processor.init(
-                subs,
-                m_messagesStore,
-                m_sessionStore,
-                null,
-                true,
-                new PermitAllAuthorizator(),
+        m_processor.init(subs, m_messagesStore, m_sessionStore, null, true, new PermitAllAuthorizator(),
                 NO_OBSERVERS_INTERCEPTOR);
         MqttConnectMessage connectMessage = MessageBuilder.connect().clientId(FAKE_PUBLISHER_ID)
                 .protocolVersion(MqttVersion.MQTT_3_1).cleanSession(true).build();
@@ -394,17 +361,10 @@ public class ProtocolProcessorTest {
 
         StoredMessage retainedMessage = new StoredMessage("Hello".getBytes(), MqttQoS.EXACTLY_ONCE, "/topic");
         retainedMessage.setRetained(true);
-        retainedMessage.setMessageID(120);
         retainedMessage.setClientID(FAKE_PUBLISHER_ID);
         m_messagesStore.storePublishForFuture(retainedMessage);
 
-        m_processor.init(
-                subs,
-                m_messagesStore,
-                m_sessionStore,
-                null,
-                true,
-                new PermitAllAuthorizator(),
+        m_processor.init(subs, m_messagesStore, m_sessionStore, null, true, new PermitAllAuthorizator(),
                 NO_OBSERVERS_INTERCEPTOR);
 
         MqttConnectMessage connectMessage = MessageBuilder.connect().clientId(FAKE_PUBLISHER_ID)
@@ -427,13 +387,7 @@ public class ProtocolProcessorTest {
         List<Subscription> inactiveSubscriptions = Collections.singletonList(inactiveSub);
         when(mockedSubscriptions.matches(eq(new Topic("/topic")))).thenReturn(inactiveSubscriptions);
         m_processor = new ProtocolProcessor();
-        m_processor.init(
-                mockedSubscriptions,
-                m_messagesStore,
-                m_sessionStore,
-                null,
-                true,
-                new PermitAllAuthorizator(),
+        m_processor.init(mockedSubscriptions, m_messagesStore, m_sessionStore, null, true, new PermitAllAuthorizator(),
                 NO_OBSERVERS_INTERCEPTOR);
 
         // Exercise

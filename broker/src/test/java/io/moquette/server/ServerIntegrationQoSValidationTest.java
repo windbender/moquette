@@ -34,10 +34,6 @@ import java.io.IOException;
 import java.util.Properties;
 import static org.junit.Assert.assertEquals;
 
-/**
- *
- * @author andrea
- */
 public class ServerIntegrationQoSValidationTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerIntegrationPahoTest.class);
@@ -89,7 +85,6 @@ public class ServerIntegrationQoSValidationTest {
         }
 
         m_server.stopServer();
-        IntegrationUtils.cleanPersistenceFile(m_config);
     }
 
     @Test

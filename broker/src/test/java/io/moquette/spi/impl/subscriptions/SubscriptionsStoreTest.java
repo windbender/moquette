@@ -19,7 +19,7 @@ package io.moquette.spi.impl.subscriptions;
 import io.moquette.spi.ClientSession;
 import io.moquette.spi.ISessionsStore;
 import io.moquette.spi.ISessionsStore.ClientTopicCouple;
-import io.moquette.spi.impl.MemoryStorageService;
+import io.moquette.persistence.MemoryStorageService;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import org.junit.Before;
 import org.junit.Test;
@@ -27,10 +27,6 @@ import java.io.IOException;
 import java.util.List;
 import static org.assertj.core.api.Assertions.*;
 
-/**
- *
- * @author andrea
- */
 public class SubscriptionsStoreTest {
 
     private SubscriptionsStore store;

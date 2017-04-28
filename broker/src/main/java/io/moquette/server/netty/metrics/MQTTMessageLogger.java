@@ -26,10 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static io.moquette.spi.impl.Utils.messageId;
 
-/**
- *
- * @author andrea
- */
 @Sharable
 public class MQTTMessageLogger extends ChannelDuplexHandler {
 
@@ -50,15 +46,14 @@ public class MQTTMessageLogger extends ChannelDuplexHandler {
         MqttMessageType messageType = msg.fixedHeader().messageType();
         switch (messageType) {
             case CONNECT:
-                LOG.info("{} CONNECT client <{}>", direction, clientID);
+            case DISCONNECT:
+                LOG.info("{} {} <{}>", direction, messageType, clientID);
                 break;
+
             case SUBSCRIBE:
                 MqttSubscribeMessage subscribe = (MqttSubscribeMessage) msg;
-                LOG.info(
-                        "{} SUBSCRIBE <{}> to topics {}",
-                        direction,
-                        clientID,
-                        subscribe.payload().topicSubscriptions());
+                LOG.info("{} SUBSCRIBE <{}> to topics {}", direction, clientID,
+                    subscribe.payload().topicSubscriptions());
                 break;
             case UNSUBSCRIBE:
                 MqttUnsubscribeMessage unsubscribe = (MqttUnsubscribeMessage) msg;
@@ -68,20 +63,24 @@ public class MQTTMessageLogger extends ChannelDuplexHandler {
                 MqttPublishMessage publish = (MqttPublishMessage) msg;
                 LOG.info("{} PUBLISH <{}> to topics <{}>", direction, clientID, publish.variableHeader().topicName());
                 break;
+
             case PUBREC:
-                LOG.info("{} PUBREC <{}> packetID <{}>", direction, clientID, messageId(msg));
-                break;
             case PUBCOMP:
-                LOG.info("{} PUBCOMP <{}> packetID <{}>", direction, clientID, messageId(msg));
-                break;
             case PUBREL:
-                LOG.info("{} PUBREL <{}> packetID <{}>", direction, clientID, messageId(msg));
-                break;
-            case DISCONNECT:
-                LOG.info("{} DISCONNECT <{}>", direction, clientID);
-                break;
             case PUBACK:
-                LOG.info("{} PUBACK <{}> packetID <{}>", direction, clientID, messageId(msg));
+                LOG.info("{} {} <{}> packetID <{}>", direction, messageType, clientID, messageId(msg));
+                break;
+
+            case CONNACK:
+            case SUBACK:
+            case PINGREQ:
+            case PINGRESP:
+            case UNSUBACK:
+                LOG.debug("{} {} <{}> packetID <{}>", direction, messageType, clientID, messageId(msg));
+                break;
+
+            default:
+                LOG.error("Unkonwn MessageType:{}", messageType);
                 break;
         }
     }

@@ -16,17 +16,16 @@
 
 package io.moquette.spi;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.BlockingQueue;
 import io.moquette.spi.IMessagesStore.StoredMessage;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.Topic;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+
 /**
  * Store used to handle the persistence of the subscriptions tree.
- *
- * @author andrea
  */
 public interface ISessionsStore {
 
@@ -65,7 +64,6 @@ public interface ISessionsStore {
         public String toString() {
             return "ClientTopicCouple{" + "topicFilter='" + topicFilter + '\'' + ", clientID='" + clientID + '\'' + '}';
         }
-
     }
 
     void initStore();
@@ -188,24 +186,33 @@ public interface ISessionsStore {
     /**
      * Returns the number of inflight messages for the given client ID
      *
-     * @param clientID
-     * @return
+     * @param clientID target client.
+     * @return count of pending in flight publish messages.
      */
     int getInflightMessagesNo(String clientID);
 
     /**
+     * @return the inflight inbound (PUBREL for Qos2) message.
+     * */
+    IMessagesStore.StoredMessage inboundInflight(String clientID, int messageID);
+
+    void markAsInboundInflight(String clientID, int messageID, MessageGUID guid);
+
+    /**
      * Returns the size of the session queue for the given client ID
      *
-     * @param clientID
-     * @return
+     * @param clientID target client.
+     * @return count of enqueued publish messages.
      */
     int getPendingPublishMessagesNo(String clientID);
 
     /**
      * Returns the number of second-phase ACK pending messages for the given client ID
      *
-     * @param clientID
-     * @return
+     * @param clientID target client.
+     * @return count of pending in flight publish messages.
      */
     int getSecondPhaseAckPendingMessages(String clientID);
+
+    Collection<MessageGUID> pendingAck(String clientID);
 }

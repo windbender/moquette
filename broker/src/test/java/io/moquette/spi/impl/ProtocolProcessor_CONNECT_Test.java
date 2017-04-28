@@ -16,6 +16,7 @@
 
 package io.moquette.spi.impl;
 
+import io.moquette.persistence.MemoryStorageService;
 import io.moquette.server.netty.MessageBuilder;
 import io.moquette.server.netty.NettyUtils;
 import io.moquette.spi.ClientSession;
@@ -42,10 +43,6 @@ import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.*;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- *
- * @author andrea
- */
 public class ProtocolProcessor_CONNECT_Test {
 
     EmbeddedChannel m_session;

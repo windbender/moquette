@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2012-2017 The original author or authors
+ * ------------------------------------------------------
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Apache License v2.0 which accompanies this distribution.
+ *
+ * The Eclipse Public License is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * The Apache License v2.0 is available at
+ * http://www.opensource.org/licenses/apache2.0.php
+ *
+ * You may elect to redistribute this code under either of these licenses.
+ */
 
 package io.moquette.spi.impl;
 
@@ -25,22 +40,16 @@ class InternalRepublisher {
     void publishRetained(ClientSession targetSession, Collection<IMessagesStore.StoredMessage> messages) {
         for (IMessagesStore.StoredMessage storedMsg : messages) {
             // fire as retained the message
-            Integer packetID = storedMsg.getQos() == MqttQoS.AT_MOST_ONCE ? null : targetSession.nextPacketId();
-            if (packetID != null) {
-                LOG.debug(
-                        "Adding message to inflight zone. "
-                        + "MqttClientId = {}, packetId = {}, messageId = {}, topic = {}.",
-                        targetSession.clientID,
-                        packetID,
-                        storedMsg.getMessageID(),
-                        storedMsg.getTopic());
-                targetSession.inFlightAckWaiting(storedMsg.getGuid(), packetID);
-            }
             MqttPublishMessage publishMsg = retainedPublish(storedMsg);
-            // set the PacketIdentifier only for QoS > 0
-            if (publishMsg.fixedHeader().qosLevel() != MqttQoS.AT_MOST_ONCE) {
+            if (storedMsg.getQos() != MqttQoS.AT_MOST_ONCE) {
+                LOG.debug("Adding message to inflight zone. ClientId={}, topic={}", targetSession.clientID,
+                    storedMsg.getTopic());
+                int packetID = targetSession.inFlightAckWaiting(storedMsg.getGuid());
+
+                // set the PacketIdentifier only for QoS > 0
                 publishMsg = retainedPublish(storedMsg, packetID);
             }
+
             this.messageSender.sendPublish(targetSession, publishMsg);
         }
     }
@@ -51,56 +60,36 @@ class InternalRepublisher {
 
         for (IMessagesStore.StoredMessage pubEvt : storedPublishes) {
             // put in flight zone
-            LOG.debug(
-                    "Adding message ot inflight zone. MqttClientId = {}, guid = {}, messageId = {}, topic = {}.",
-                    clientSession.clientID,
-                    pubEvt.getGuid(),
-                    pubEvt.getMessageID(),
-                    pubEvt.getTopic());
-            clientSession.inFlightAckWaiting(pubEvt.getGuid(), pubEvt.getMessageID());
+            LOG.debug("Adding message ot inflight zone. ClientId={}, guid={}, topic={}", clientSession.clientID,
+                pubEvt.getGuid(), pubEvt.getTopic());
+            int messageId = clientSession.inFlightAckWaiting(pubEvt.getGuid());
             MqttPublishMessage publishMsg = notRetainedPublish(pubEvt);
             // set the PacketIdentifier only for QoS > 0
             if (publishMsg.fixedHeader().qosLevel() != MqttQoS.AT_MOST_ONCE) {
-                publishMsg = notRetainedPublish(pubEvt, pubEvt.getMessageID());
+                publishMsg = notRetainedPublish(pubEvt, messageId);
             }
             this.messageSender.sendPublish(clientSession, publishMsg);
         }
     }
 
     private MqttPublishMessage notRetainedPublish(IMessagesStore.StoredMessage storedMessage, Integer messageID) {
-        return createPublishForQos(
-                storedMessage.getTopic(),
-                storedMessage.getQos(),
-                storedMessage.getMessage(),
-                false,
-                messageID);
+        return createPublishForQos(storedMessage.getTopic(), storedMessage.getQos(), storedMessage.getMessage(), false,
+            messageID);
     }
 
     private MqttPublishMessage notRetainedPublish(IMessagesStore.StoredMessage storedMessage) {
-        return createPublishForQos(
-                storedMessage.getTopic(),
-                storedMessage.getQos(),
-                storedMessage.getMessage(),
-                false,
-                0);
+        return createPublishForQos(storedMessage.getTopic(), storedMessage.getQos(), storedMessage.getMessage(), false,
+            0);
     }
 
     private MqttPublishMessage retainedPublish(IMessagesStore.StoredMessage storedMessage) {
-        return createPublishForQos(
-                storedMessage.getTopic(),
-                storedMessage.getQos(),
-                storedMessage.getMessage(),
-                true,
-                0);
+        return createPublishForQos(storedMessage.getTopic(), storedMessage.getQos(), storedMessage.getMessage(), true,
+            0);
     }
 
     private MqttPublishMessage retainedPublish(IMessagesStore.StoredMessage storedMessage, Integer packetID) {
-        return createPublishForQos(
-                storedMessage.getTopic(),
-                storedMessage.getQos(),
-                storedMessage.getMessage(),
-                true,
-                packetID);
+        return createPublishForQos(storedMessage.getTopic(), storedMessage.getQos(), storedMessage.getMessage(), true,
+            packetID);
     }
 
     public static MqttPublishMessage createPublishForQos(String topic, MqttQoS qos, ByteBuf message, boolean retained,
