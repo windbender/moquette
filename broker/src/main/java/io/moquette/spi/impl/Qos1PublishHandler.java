@@ -19,6 +19,7 @@ package io.moquette.spi.impl;
 import io.moquette.server.ConnectionDescriptorStore;
 import io.moquette.server.netty.NettyUtils;
 import io.moquette.spi.IMessagesStore;
+import io.moquette.spi.MessageGUID;
 import io.moquette.spi.impl.subscriptions.Subscription;
 import io.moquette.spi.impl.subscriptions.SubscriptionsStore;
 import io.moquette.spi.impl.subscriptions.Topic;
@@ -39,17 +40,14 @@ class Qos1PublishHandler extends QosPublishHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(Qos1PublishHandler.class);
 
-    private final SubscriptionsStore subscriptions;
     private final IMessagesStore m_messagesStore;
     private final BrokerInterceptor m_interceptor;
     private final ConnectionDescriptorStore connectionDescriptors;
     private final MessagesPublisher publisher;
 
-    Qos1PublishHandler(IAuthorizator authorizator, SubscriptionsStore subscriptions, IMessagesStore messagesStore,
-            BrokerInterceptor interceptor, ConnectionDescriptorStore connectionDescriptors, String brokerPort,
-            MessagesPublisher messagesPublisher) {
+    public Qos1PublishHandler(IAuthorizator authorizator, IMessagesStore messagesStore, BrokerInterceptor interceptor,
+                              ConnectionDescriptorStore connectionDescriptors, MessagesPublisher messagesPublisher) {
         super(authorizator);
-        this.subscriptions = subscriptions;
         this.m_messagesStore = messagesStore;
         this.m_interceptor = interceptor;
         this.connectionDescriptors = connectionDescriptors;
@@ -59,7 +57,10 @@ class Qos1PublishHandler extends QosPublishHandler {
     void receivedPublishQos1(Channel channel, MqttPublishMessage msg) {
         // verify if topic can be write
         final Topic topic = new Topic(msg.variableHeader().topicName());
-        if (checkWriteOnTopic(topic, channel)) {
+        String clientID = NettyUtils.clientID(channel);
+        String username = NettyUtils.userName(channel);
+        if (!m_authorizator.canWrite(topic, username, clientID)) {
+            LOG.error("MQTT client is not authorized to publish on topic. CId={}, topic={}", clientID, topic);
             return;
         }
 
@@ -67,20 +68,9 @@ class Qos1PublishHandler extends QosPublishHandler {
 
         // route message to subscribers
         IMessagesStore.StoredMessage toStoreMsg = asStoredMessage(msg);
-        String clientID = NettyUtils.clientID(channel);
         toStoreMsg.setClientID(clientID);
 
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Sending publish message to subscribers. ClientId={}, topic={}, messageId={}, payload={}, " +
-                "subscriptionTree={}", clientID, topic, messageID, DebugUtils.payload2Str(toStoreMsg.getMessage()),
-                subscriptions.dumpTree());
-        } else {
-            LOG.info("Sending publish message to subscribers. ClientId={}, topic={}, messageId={}", clientID, topic,
-                messageID);
-        }
-
-        List<Subscription> topicMatchingSubscriptions = subscriptions.matches(topic);
-        this.publisher.publish2Subscribers(toStoreMsg, topicMatchingSubscriptions);
+        this.publisher.publish2Subscribers(toStoreMsg, topic, messageID);
 
         sendPubAck(clientID, messageID);
 
@@ -89,12 +79,14 @@ class Qos1PublishHandler extends QosPublishHandler {
                 m_messagesStore.cleanRetained(topic);
             } else {
                 // before wasn't stored
-                //MessageGUID guid = m_messagesStore.storePublishForFuture(toStoreMsg);
-                m_messagesStore.storeRetained(topic, toStoreMsg.getGuid());
+                MessageGUID guid = m_messagesStore.storePublishForFuture(toStoreMsg);
+
+                //TODO Il messaggio non ha il guid settato
+//                m_messagesStore.storeRetained(topic, toStoreMsg.getGuid());
+                m_messagesStore.storeRetained(topic, guid);
             }
         }
 
-        String username = NettyUtils.userName(channel);
         m_interceptor.notifyTopicPublished(msg, clientID, username);
     }
 
