@@ -62,9 +62,9 @@ class MapDBMessagesStore implements IMessagesStore {
         LOG.debug("Scanning retained messages...");
         List<StoredMessage> results = new ArrayList<>();
         for (Map.Entry<Topic, MessageGUID> entry : m_retainedStore.entrySet()) {
-            final MessageGUID guid = entry.getValue();
-            StoredMessage storedMsg = m_persistentMessageStore.get(guid);
             if (condition.match(entry.getKey())) {
+                final MessageGUID guid = entry.getValue();
+                StoredMessage storedMsg = m_persistentMessageStore.get(guid);
                 results.add(storedMsg);
             }
         }
