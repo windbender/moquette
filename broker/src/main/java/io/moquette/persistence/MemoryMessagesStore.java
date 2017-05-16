@@ -23,13 +23,14 @@ import io.moquette.spi.impl.subscriptions.Topic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MemoryMessagesStore implements IMessagesStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(MemoryMessagesStore.class);
 
-    private Map<Topic, MessageGUID> m_retainedStore = new HashMap<>();
-    private Map<MessageGUID, StoredMessage> m_persistentMessageStore = new HashMap<>();
+    private Map<Topic, MessageGUID> m_retainedStore = new ConcurrentHashMap();
+    private Map<MessageGUID, StoredMessage> m_persistentMessageStore = new ConcurrentHashMap<>();
 
     MemoryMessagesStore() {
     }
@@ -50,9 +51,9 @@ public class MemoryMessagesStore implements IMessagesStore {
         List<StoredMessage> results = new ArrayList<>();
 
         for (Map.Entry<Topic, MessageGUID> entry : m_retainedStore.entrySet()) {
-            final MessageGUID guid = entry.getValue();
-            StoredMessage storedMsg = m_persistentMessageStore.get(guid);
             if (condition.match(entry.getKey())) {
+                final MessageGUID guid = entry.getValue();
+                StoredMessage storedMsg = m_persistentMessageStore.get(guid);
                 results.add(storedMsg);
             }
         }
