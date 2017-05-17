@@ -21,6 +21,7 @@ import io.moquette.server.ServerAcceptor;
 import io.moquette.server.config.IConfig;
 import io.moquette.server.netty.metrics.*;
 import io.moquette.spi.impl.ProtocolProcessor;
+import io.moquette.spi.metrics.MetricInterface;
 import io.moquette.spi.security.ISslContextCreator;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -100,7 +101,7 @@ public class NettyAcceptor implements ServerAcceptor {
     private int nettyChannelTimeoutSeconds;
 
     @Override
-    public void initialize(ProtocolProcessor processor, IConfig props, ISslContextCreator sslCtxCreator)
+    public void initialize(ProtocolProcessor processor, IConfig props, ISslContextCreator sslCtxCreator, MetricInterface metrics)
             throws IOException {
         LOG.info("Initializing Netty acceptor...");
 
@@ -116,7 +117,7 @@ public class NettyAcceptor implements ServerAcceptor {
 
         m_bossGroup = new NioEventLoopGroup();
         m_workerGroup = new NioEventLoopGroup();
-        final NettyMQTTHandler handler = new NettyMQTTHandler(processor);
+        final NettyMQTTHandler handler = new NettyMQTTHandler(processor,metrics);
 
         initializePlainTCPTransport(handler, props);
         initializeWebSocketTransport(handler, props);

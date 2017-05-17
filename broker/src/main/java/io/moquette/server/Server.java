@@ -33,6 +33,7 @@ import io.moquette.server.netty.NettyAcceptor;
 import io.moquette.spi.impl.ProtocolProcessor;
 import io.moquette.spi.impl.ProtocolProcessorBootstrapper;
 import io.moquette.spi.impl.subscriptions.Subscription;
+import io.moquette.spi.metrics.MetricInterface;
 import io.moquette.spi.security.IAuthenticator;
 import io.moquette.spi.security.IAuthorizator;
 import io.moquette.spi.security.ISslContextCreator;
@@ -163,11 +164,11 @@ public class Server {
      */
     public void startServer(IConfig config, List<? extends InterceptHandler> handlers) throws IOException {
         LOG.info("Starting moquette server using IConfig instance and intercept handlers");
-        startServer(config, handlers, null, null, null);
+        startServer(config, handlers, null, null, null,null);
     }
 
     public void startServer(IConfig config, List<? extends InterceptHandler> handlers, ISslContextCreator sslCtxCreator,
-            IAuthenticator authenticator, IAuthorizator authorizator) throws IOException {
+            IAuthenticator authenticator, IAuthorizator authorizator, MetricInterface metrics) throws IOException {
         if (handlers == null) {
             handlers = Collections.emptyList();
         }
@@ -193,7 +194,7 @@ public class Server {
 
         LOG.info("Binding server to the configured ports");
         m_acceptor = new NettyAcceptor();
-        m_acceptor.initialize(processor, config, sslCtxCreator);
+        m_acceptor.initialize(processor, config, sslCtxCreator,metrics);
         m_processor = processor;
 
         LOG.info("Moquette server has been initialized successfully");

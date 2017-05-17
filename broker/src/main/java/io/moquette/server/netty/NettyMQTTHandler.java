@@ -17,6 +17,8 @@
 package io.moquette.server.netty;
 
 import io.moquette.spi.impl.ProtocolProcessor;
+import io.moquette.spi.metrics.MetricContext;
+import io.moquette.spi.metrics.MetricInterface;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -25,17 +27,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
-import java.io.IOException;
-import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
 @Sharable
 public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOG = LoggerFactory.getLogger(NettyMQTTHandler.class);
     private final ProtocolProcessor m_processor;
-
-    public NettyMQTTHandler(ProtocolProcessor processor) {
+    private final MetricInterface m_metric;
+    public NettyMQTTHandler(ProtocolProcessor processor, MetricInterface metric ) {
         m_processor = processor;
+        m_metric = metric;
     }
 
     @Override
@@ -44,6 +45,8 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
         MqttMessageType messageType = msg.fixedHeader().messageType();
         String clientID = NettyUtils.clientID(ctx.channel());
         SocketAddress rmAddr = ctx.channel().remoteAddress();
+        MetricContext mc = null;
+        if(m_metric != null) mc =m_metric.startProcess(messageType);
         LOG.debug("Processing MQTT message, type={} from {} at {}", messageType);
         try {
             switch (messageType) {
@@ -84,6 +87,8 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
         } catch (Throwable ex) {
             LOG.error("Exception was caught while processing MQTT message, " + ex.getCause(), ex);
             ctx.fireExceptionCaught(ex);
+        } finally {
+            if(mc != null) mc.processStopped();
         }
     }
 

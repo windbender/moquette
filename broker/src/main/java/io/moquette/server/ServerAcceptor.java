@@ -19,11 +19,12 @@ package io.moquette.server;
 import java.io.IOException;
 import io.moquette.server.config.IConfig;
 import io.moquette.spi.impl.ProtocolProcessor;
+import io.moquette.spi.metrics.MetricInterface;
 import io.moquette.spi.security.ISslContextCreator;
 
 public interface ServerAcceptor {
 
-    void initialize(ProtocolProcessor processor, IConfig props, ISslContextCreator sslCtxCreator) throws IOException;
+    void initialize(ProtocolProcessor processor, IConfig props, ISslContextCreator sslCtxCreator, MetricInterface metrics) throws IOException;
 
     void close();
 }
