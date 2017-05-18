@@ -50,41 +50,47 @@ public class MQTTMessageLogger extends ChannelDuplexHandler {
         }
         MqttMessage msg = (MqttMessage) message;
         String clientID = NettyUtils.clientID(ctx.channel());
-        MqttMessageType messageType = msg.fixedHeader().messageType();
-        switch (messageType) {
-            case CONNECT:
-            case CONNACK:
-            case PINGREQ:
-            case PINGRESP:
-            case DISCONNECT:
-                LOG.info("{} {} <{}>", direction, messageType, clientID);
-                break;
-            case SUBSCRIBE:
-                MqttSubscribeMessage subscribe = (MqttSubscribeMessage) msg;
-                LOG.info("{} SUBSCRIBE <{}> to topics {}", direction, clientID,
-                    subscribe.payload().topicSubscriptions());
-                break;
-            case UNSUBSCRIBE:
-                MqttUnsubscribeMessage unsubscribe = (MqttUnsubscribeMessage) msg;
-                LOG.info("{} UNSUBSCRIBE <{}> to topics <{}>", direction, clientID, unsubscribe.payload().topics());
-                break;
-            case PUBLISH:
-                MqttPublishMessage publish = (MqttPublishMessage) msg;
-                LOG.info("{} PUBLISH <{}> to topics <{}>", direction, clientID, publish.variableHeader().topicName());
-                break;
-            case PUBREC:
-            case PUBCOMP:
-            case PUBREL:
-            case PUBACK:
-            case UNSUBACK:
-                LOG.info("{} {} <{}> packetID <{}>", direction, messageType, clientID, messageId(msg));
-                break;
-            case SUBACK:
-                MqttSubAckMessage suback = (MqttSubAckMessage) msg;
-                final List<Integer> grantedQoSLevels = suback.payload().grantedQoSLevels();
-                LOG.info("{} SUBACK <{}> packetID <{}>, grantedQoses {}", direction, clientID, messageId(msg),
-                    grantedQoSLevels);
-                break;
+        if(msg == null) {
+            LOG.info("Trying logMQTT with null message for client id {}", clientID);
+        } else if(msg.fixedHeader() == null) {
+            LOG.info("Trying logMQTT with message with null fixed Header for client id {}", clientID);
+        } else {
+            MqttMessageType messageType = msg.fixedHeader().messageType();
+            switch (messageType) {
+                case CONNECT:
+                case CONNACK:
+                case PINGREQ:
+                case PINGRESP:
+                case DISCONNECT:
+                    LOG.info("{} {} <{}>", direction, messageType, clientID);
+                    break;
+                case SUBSCRIBE:
+                    MqttSubscribeMessage subscribe = (MqttSubscribeMessage) msg;
+                    LOG.info("{} SUBSCRIBE <{}> to topics {}", direction, clientID,
+                        subscribe.payload().topicSubscriptions());
+                    break;
+                case UNSUBSCRIBE:
+                    MqttUnsubscribeMessage unsubscribe = (MqttUnsubscribeMessage) msg;
+                    LOG.info("{} UNSUBSCRIBE <{}> to topics <{}>", direction, clientID, unsubscribe.payload().topics());
+                    break;
+                case PUBLISH:
+                    MqttPublishMessage publish = (MqttPublishMessage) msg;
+                    LOG.info("{} PUBLISH <{}> to topics <{}>", direction, clientID, publish.variableHeader().topicName());
+                    break;
+                case PUBREC:
+                case PUBCOMP:
+                case PUBREL:
+                case PUBACK:
+                case UNSUBACK:
+                    LOG.info("{} {} <{}> packetID <{}>", direction, messageType, clientID, messageId(msg));
+                    break;
+                case SUBACK:
+                    MqttSubAckMessage suback = (MqttSubAckMessage) msg;
+                    final List<Integer> grantedQoSLevels = suback.payload().grantedQoSLevels();
+                    LOG.info("{} SUBACK <{}> packetID <{}>, grantedQoses {}", direction, clientID, messageId(msg),
+                        grantedQoSLevels);
+                    break;
+            }
         }
     }
 
