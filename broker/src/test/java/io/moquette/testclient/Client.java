@@ -48,7 +48,7 @@ public class Client {
     private ICallback callback;
     private String clientId;
     private MqttMessage receivedMsg;
-
+    private int maximum_mqtt_msg_length_bytes = 8092;
     public Client(String host) {
         this(host, BrokerConstants.PORT);
     }
@@ -66,7 +66,7 @@ public class Client {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
                     ChannelPipeline pipeline = ch.pipeline();
-                    pipeline.addLast("decoder", new MqttDecoder());
+                    pipeline.addLast("decoder", new MqttDecoder(maximum_mqtt_msg_length_bytes));
                     pipeline.addLast("encoder", MqttEncoder.INSTANCE);
                     pipeline.addLast("handler", handler);
                 }

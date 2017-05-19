@@ -41,9 +41,16 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object message) {
-        MqttMessage msg = (MqttMessage) message;
-        MqttMessageType messageType = msg.fixedHeader().messageType();
         String clientID = NettyUtils.clientID(ctx.channel());
+        MqttMessage msg = (MqttMessage) message;
+        if(msg.decoderResult().isFailure()) {
+            LOG.error("there is a problem decoding message for clientID={} because {}",clientID,msg.decoderResult().toString() );
+            return;
+        }
+        if(msg.fixedHeader() == null) {
+            LOG.error("this message has a null fixed header");
+        }
+        MqttMessageType messageType = msg.fixedHeader().messageType();
         SocketAddress rmAddr = ctx.channel().remoteAddress();
         MetricContext mc = null;
         if(m_metric != null) mc =m_metric.startProcess(messageType);

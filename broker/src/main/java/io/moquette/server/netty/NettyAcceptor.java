@@ -99,6 +99,7 @@ public class NettyAcceptor implements ServerAcceptor {
     private boolean nettyTcpNodelay;
     private boolean nettySoKeepalive;
     private int nettyChannelTimeoutSeconds;
+    private int maximumMessageLength;
 
     @Override
     public void initialize(ProtocolProcessor processor, IConfig props, ISslContextCreator sslCtxCreator, MetricInterface metrics)
@@ -115,6 +116,7 @@ public class NettyAcceptor implements ServerAcceptor {
         nettyChannelTimeoutSeconds = Integer
                 .parseInt(props.getProperty(BrokerConstants.NETTY_CHANNEL_TIMEOUT_SECONDS_PROPERTY_NAME, "10"));
 
+        maximumMessageLength = Integer.parseInt(props.getProperty(BrokerConstants.MAXIMUM_MQTT_MESSAGE_LENGTH_BYTES,"8092"));
         m_bossGroup = new NioEventLoopGroup();
         m_workerGroup = new NioEventLoopGroup();
         final NettyMQTTHandler handler = new NettyMQTTHandler(processor,metrics);
@@ -183,7 +185,7 @@ public class NettyAcceptor implements ServerAcceptor {
                 pipeline.addAfter("idleStateHandler", "idleEventHandler", timeoutHandler);
                 // pipeline.addLast("logger", new LoggingHandler("Netty", LogLevel.ERROR));
                 pipeline.addFirst("bytemetrics", new BytesMetricsHandler(m_bytesMetricsCollector));
-                pipeline.addLast("decoder", new MqttDecoder());
+                pipeline.addLast("decoder", new MqttDecoder(maximumMessageLength));
                 pipeline.addLast("encoder", MqttEncoder.INSTANCE);
                 pipeline.addLast("metrics", new MessageMetricsHandler(m_metricsCollector));
                 pipeline.addLast("messageLogger", new MQTTMessageLogger());
@@ -219,7 +221,7 @@ public class NettyAcceptor implements ServerAcceptor {
                 pipeline.addFirst("idleStateHandler", new IdleStateHandler(nettyChannelTimeoutSeconds, 0, 0));
                 pipeline.addAfter("idleStateHandler", "idleEventHandler", timeoutHandler);
                 pipeline.addFirst("bytemetrics", new BytesMetricsHandler(m_bytesMetricsCollector));
-                pipeline.addLast("decoder", new MqttDecoder());
+                pipeline.addLast("decoder", new MqttDecoder(maximumMessageLength));
                 pipeline.addLast("encoder", MqttEncoder.INSTANCE);
                 pipeline.addLast("metrics", new MessageMetricsHandler(m_metricsCollector));
                 pipeline.addLast("messageLogger", new MQTTMessageLogger());
@@ -255,7 +257,7 @@ public class NettyAcceptor implements ServerAcceptor {
                 pipeline.addAfter("idleStateHandler", "idleEventHandler", timeoutHandler);
                 // pipeline.addLast("logger", new LoggingHandler("Netty", LogLevel.ERROR));
                 pipeline.addFirst("bytemetrics", new BytesMetricsHandler(m_bytesMetricsCollector));
-                pipeline.addLast("decoder", new MqttDecoder());
+                pipeline.addLast("decoder", new MqttDecoder(maximumMessageLength));
                 pipeline.addLast("encoder", MqttEncoder.INSTANCE);
                 pipeline.addLast("metrics", new MessageMetricsHandler(m_metricsCollector));
                 pipeline.addLast("messageLogger", new MQTTMessageLogger());
@@ -294,7 +296,7 @@ public class NettyAcceptor implements ServerAcceptor {
                 pipeline.addFirst("idleStateHandler", new IdleStateHandler(nettyChannelTimeoutSeconds, 0, 0));
                 pipeline.addAfter("idleStateHandler", "idleEventHandler", timeoutHandler);
                 pipeline.addFirst("bytemetrics", new BytesMetricsHandler(m_bytesMetricsCollector));
-                pipeline.addLast("decoder", new MqttDecoder());
+                pipeline.addLast("decoder", new MqttDecoder(maximumMessageLength));
                 pipeline.addLast("encoder", MqttEncoder.INSTANCE);
                 pipeline.addLast("metrics", new MessageMetricsHandler(m_metricsCollector));
                 pipeline.addLast("messageLogger", new MQTTMessageLogger());

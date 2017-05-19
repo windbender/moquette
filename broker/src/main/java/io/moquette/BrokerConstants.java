@@ -57,6 +57,7 @@ public final class BrokerConstants {
     public static final String NETTY_SO_KEEPALIVE_PROPERTY_NAME = "netty.so_keepalive";
     public static final String NETTY_CHANNEL_TIMEOUT_SECONDS_PROPERTY_NAME = "netty.channel_timeout.seconds";
     public static final String STORAGE_CLASS_NAME = "storage_class";
+    public static final String MAXIMUM_MQTT_MESSAGE_LENGTH_BYTES = "mqtt.maximum_msg_len_bytes";
 
     private BrokerConstants() {
     }
